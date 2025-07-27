@@ -1,6 +1,4 @@
-Here’s a detailed **backend microservices structure** for your SaaS chatbot platform, documented in a clean **README-style markdown** format. This includes all the services we've discussed, their purpose, key features, and how they interact:
 
----
 
 # 🧠 ChatForge AI – Backend Microservices Architecture
 
