@@ -15,7 +15,9 @@
     "declaration": true,
     "moduleResolution": "node",
     "types": ["node"],
-    "typeRoots": ["./types", "./node_modules/@types"]
+    "typeRoots": ["./types", "./node_modules/@types"],
+    "allowJs": true,
+    "checkJs": false,
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"],
