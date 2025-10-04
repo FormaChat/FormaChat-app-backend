@@ -40,9 +40,33 @@ export interface IOTP extends Document {
   createdAt: Date;
 }
 
+export interface IRefreshToken extends Document {
+  userId: mongoose.Types.ObjectId;
+  tokenHash: string;
+  expiresAt: Date;
+  isRevoked: boolean;
+  deviceInfo: {
+    userAgent: string;
+    ipAddress: string;
+  };
+  createdAt: Date;
+}
+
 export interface IAuthLog extends Document {
   userId?: mongoose.Types.ObjectId;
-  eventType: 'login' | 'logout' | 'registration' | 'password_change' | 'failed_attempt' | 'account_locked';
+  eventType: 
+    | 'login' 
+    | 'logout' 
+    | 'registration' 
+    | 'password_change' 
+    | 'failed_attempt' 
+    | 'account_locked'
+    | 'otp_requested'
+    | 'otp_verified'
+    | 'otp_failed'
+    | 'password_reset'
+    | 'token_refreshed'
+    | 'account_deactivated';
   success: boolean;
   metadata: {
     ipAddress: string;
@@ -100,9 +124,11 @@ const UserSchema: Schema<IUser> = new Schema({
   failedLoginAttempts: { 
     type: Number, 
     default: 0 
+    // Locked after 5 failed attempts (enforced in auth.user.service)
   },
   lockUntil: { 
     type: Date 
+    // Lock duration: 30 minutes (enforced in auth.user.service)
   },
   passwordChangedAt: { 
     type: Date, 
@@ -130,6 +156,7 @@ UserSchema.index({ lockUntil: 1 });
 // OTP Schema
 // -----------------------------
 const OTPSchema: Schema<IOTP> = new Schema({
+  // core
   userId: { 
     type: Schema.Types.ObjectId, 
     ref: 'User', 
@@ -166,8 +193,52 @@ const OTPSchema: Schema<IOTP> = new Schema({
 // TTL index for automatic expiration cleanup
 OTPSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
-// Compound index for efficient OTP lookups
-OTPSchema.index({ userId: 1, type: 1 });
+// Compound index for efficient OTP lookups (includes 'used' for faster queries)
+OTPSchema.index({ userId: 1, type: 1, used: 1 });
+
+// -----------------------------
+// RefreshToken Schema
+// -----------------------------
+const RefreshTokenSchema: Schema<IRefreshToken> = new Schema({
+  userId: { 
+    type: Schema.Types.ObjectId, 
+    ref: 'User', 
+    required: true,
+    index: true 
+  },
+  tokenHash: { 
+    type: String, 
+    required: true,
+    unique: true // Each token is unique
+  },
+  expiresAt: { 
+    type: Date, 
+    required: true,
+    index: true 
+  },
+  isRevoked: { 
+    type: Boolean, 
+    default: false,
+    index: true 
+  },
+  deviceInfo: {
+    userAgent: { type: String, required: true },
+    ipAddress: { type: String, required: true }
+  }
+}, {
+  timestamps: true
+});
+
+// Single session enforcement: Only one active (non-revoked) token per user
+RefreshTokenSchema.index({ userId: 1, isRevoked: 1 }, { 
+  unique: true,
+  partialFilterExpression: { isRevoked: false }
+});
+// TTL index for automatic cleanup of expired tokens
+RefreshTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+// Index for quick token verification lookups
+RefreshTokenSchema.index({ tokenHash: 1, isRevoked: 1 });
 
 // -----------------------------
 // Auth Log Schema
@@ -181,7 +252,20 @@ const AuthLogSchema: Schema<IAuthLog> = new Schema({
   },
   eventType: { 
     type: String, 
-    enum: ['login', 'logout', 'registration', 'password_change', 'failed_attempt', 'account_locked'],
+    enum: [
+      'login',
+      'logout',
+      'registration',
+      'password_change',
+      'failed_attempt',
+      'account_locked',
+      'otp_requested',
+      'otp_verified',
+      'otp_failed',
+      'password_reset',
+      'token_refreshed',
+      'account_deactivated'
+    ],
     required: true 
   },
   success: { 
@@ -214,4 +298,5 @@ AuthLogSchema.index({ userId: 1, timestamp: -1 });
 // -----------------------------
 export const UserModel: Model<IUser> = mongoose.model<IUser>('User', UserSchema);
 export const OTPModel: Model<IOTP> = mongoose.model<IOTP>('OTP', OTPSchema);
+export const RefreshTokenModel: Model<IRefreshToken> = mongoose.model<IRefreshToken>('RefreshToken', RefreshTokenSchema);
 export const AuthLogModel: Model<IAuthLog> = mongoose.model<IAuthLog>('AuthLog', AuthLogSchema);

@@ -3,6 +3,7 @@ import { cleanEnv, str, num, bool } from 'envalid';
 import { createLogger } from '../utils/auth.logger.utils';
 
 dotenv.config();
+
 const logger = createLogger('env-config');
 
 export const env = cleanEnv(process.env, {

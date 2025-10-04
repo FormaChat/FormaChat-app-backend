@@ -1,26 +1,36 @@
-import Redis, {RedisOptions} from 'ioredis';
-import crypto from 'crypto';
+import Redis, { RedisOptions } from 'ioredis';
 import { createLogger } from '../utils/auth.logger.utils';
 import { env } from './auth.env';
 
 const logger = createLogger('redis');
 
-// Types for stronger safety
-interface SessionData {
-  userId: string;
-  createdAt: number;
-  [key: string]: any;
+// Types for Redis data structures
+interface RateLimitResult {
+  allowed: boolean;
+  remaining: number;
+  resetTime: number;
 }
 
-interface IdempotencyResult {
+interface IdempotencyData {
   status: string;
   response: any;
+  timestamp: number;
 }
 
 class RedisManager {
   private static instance: RedisManager;
   private client: Redis;
   private isConnected = false;
+
+  // Key prefixes for organization
+  private readonly KEY_PREFIXES = {
+    OTP_PLAIN: 'otp:plain:',      // For email service (plaintext)
+    OTP_HASHED: 'otp:hashed:',    // For verification (hashed)
+    SESSION: 'session:',
+    IDEMPOTENCY: 'idempotency:',
+    RATE_LIMIT: 'rate:',
+    LOCK: 'lock:'
+  };
 
   private constructor() {
     const options: RedisOptions = {
@@ -29,10 +39,7 @@ class RedisManager {
       enableReadyCheck: true,
       autoResendUnfulfilledCommands: true,
       enableOfflineQueue: true,
-      retryStrategy: (times) => {
-        // Exponential backoff: wait longer with each retry
-        return Math.min(times * 200, 2000);
-      },
+      retryStrategy: (times) => Math.min(times * 200, 2000),
     };
 
     if (env.REDIS_TLS) options.tls = {};
@@ -51,22 +58,18 @@ class RedisManager {
 
   private setupEventListeners(): void {
     this.client.on('connect', () => logger.info('🔄 Redis connecting...'));
-
     this.client.on('ready', () => {
       this.isConnected = true;
       logger.info('✅ Redis connected and ready');
     });
-
     this.client.on('error', (error) => {
       this.isConnected = false;
-      logger.error(`❌ Redis error: ${error.message}`, { error });
+      logger.error('❌ Redis error:', error);
     });
-
     this.client.on('close', () => {
       this.isConnected = false;
       logger.warn('⚠️ Redis connection closed');
     });
-
     this.client.on('reconnecting', () => logger.info('🔄 Redis reconnecting...'));
   }
 
@@ -75,7 +78,7 @@ class RedisManager {
     try {
       await this.client.connect();
     } catch (error: any) {
-      logger.error(`❌ Failed to connect to Redis: ${error.message}`, { error });
+      logger.error('❌ Failed to connect to Redis:', error);
       throw error;
     }
   }
@@ -87,118 +90,199 @@ class RedisManager {
       this.isConnected = false;
       logger.info('✅ Redis disconnected gracefully');
     } catch (error: any) {
-      logger.error(`❌ Error disconnecting from Redis: ${error.message}`, { error });
+      logger.error('❌ Error disconnecting from Redis:', error);
       throw error;
     }
   }
 
-  // ---------------- OTP Handling ----------------
-  private hashOTP(otp: string): string {
-    return crypto.createHash('sha256').update(otp).digest('hex');
+  // ==================== OTP MANAGEMENT ====================
+
+  /**
+   * Store plain OTP for email service (short-lived)
+   */
+  async storePlainOTP(otpId: string, otp: string, expirySeconds: number = env.REDIS_TTL_OTP): Promise<void> {
+    const key = `${this.KEY_PREFIXES.OTP_PLAIN}${otpId}`;
+    await this.client.setex(key, expirySeconds, otp);
+    logger.debug('Plain OTP stored in Redis', { otpId, expirySeconds });
   }
 
-  public async storeOTP(identifier: string, otp: string, expiryMinutes: number = env.OTP_EXPIRY_MINUTES): Promise<void> {
-    const key = `otp:${identifier}`;
-    await this.client.setex(key, expiryMinutes * 60, this.hashOTP(otp));
+  /**
+   * Get plain OTP for email service (one-time retrieval)
+   */
+  async getPlainOTP(otpId: string): Promise<string | null> {
+    const key = `${this.KEY_PREFIXES.OTP_PLAIN}${otpId}`;
+    const otp = await this.client.get(key);
+    
+    if (otp) {
+      // Immediately delete after retrieval (one-time use)
+      await this.client.del(key);
+      logger.debug('Plain OTP retrieved and deleted', { otpId });
+    }
+    
+    return otp;
   }
 
-  public async verifyOTP(identifier: string, otp: string): Promise<boolean> {
-    const key = `otp:${identifier}`;
-    const stored = await this.client.get(key);
-    return stored === this.hashOTP(otp);
+  /**
+   * Store hashed OTP for verification purposes
+   */
+  async storeHashedOTP(identifier: string, hashedOTP: string, expiryMinutes: number = env.OTP_EXPIRY_MINUTES): Promise<void> {
+    const key = `${this.KEY_PREFIXES.OTP_HASHED}${identifier}`;
+    await this.client.setex(key, expiryMinutes * 60, hashedOTP);
+    logger.debug('Hashed OTP stored in Redis', { identifier, expiryMinutes });
   }
 
-  public async deleteOTP(identifier: string): Promise<void> {
-    await this.client.del(`otp:${identifier}`);
+  /**
+   * Verify OTP against stored hash
+   */
+  async verifyHashedOTP(identifier: string, otpToVerify: string, hashFunction: (otp: string) => Promise<string>): Promise<boolean> {
+    const key = `${this.KEY_PREFIXES.OTP_HASHED}${identifier}`;
+    const storedHash = await this.client.get(key);
+    
+    if (!storedHash) return false;
+    
+    const verifyHash = await hashFunction(otpToVerify);
+    return storedHash === verifyHash;
   }
 
-  // ---------------- Session Management ----------------
-  public async storeSession(sessionId: string, data: SessionData, ttl: number = 3600): Promise<void> {
-    await this.client.setex(`session:${sessionId}`, ttl, JSON.stringify(data));
+  /**
+   * Delete OTP from Redis (both plain and hashed if needed)
+   */
+  async deleteOTP(identifier: string, otpId?: string): Promise<void> {
+    const promises = [];
+    
+    if (otpId) {
+      promises.push(this.client.del(`${this.KEY_PREFIXES.OTP_PLAIN}${otpId}`));
+    }
+    
+    promises.push(this.client.del(`${this.KEY_PREFIXES.OTP_HASHED}${identifier}`));
+    
+    await Promise.all(promises);
+    logger.debug('OTP data deleted from Redis', { identifier, otpId });
   }
 
-  public async getSession(sessionId: string): Promise<SessionData | null> {
-    const data = await this.client.get(`session:${sessionId}`);
-    return data ? JSON.parse(data) : null;
-  }
+  // ==================== RATE LIMITING ====================
 
-  public async deleteSession(sessionId: string): Promise<void> {
-    await this.client.del(`session:${sessionId}`);
-  }
-
-  // ---------------- Rate Limiting ----------------
-  public async checkRateLimit(key: string, windowMs: number, maxRequests: number): Promise<{ allowed: boolean; remaining: number }> {
+  async checkRateLimit(key: string, windowMs: number, maxRequests: number): Promise<RateLimitResult> {
+    const redisKey = `${this.KEY_PREFIXES.RATE_LIMIT}${key}`;
     const now = Date.now();
     const windowStart = now - windowMs;
 
     const pipeline = this.client.pipeline();
-    pipeline.zremrangebyscore(key, 0, windowStart);
-    pipeline.zadd(key, now, `${now}-${Math.random()}`);
-    pipeline.zcard(key);
-    pipeline.expire(key, Math.ceil(windowMs / 1000));
+    pipeline.zremrangebyscore(redisKey, 0, windowStart);
+    pipeline.zadd(redisKey, now, `${now}-${Math.random()}`);
+    pipeline.zcard(redisKey);
+    pipeline.expire(redisKey, Math.ceil(windowMs / 1000));
 
     const results = await pipeline.exec();
-    if (!results || results.some(r => r[0] !== null)) {
+    
+    if (!results) {
       throw new Error('Redis pipeline execution failed');
     }
 
     const requestCount = results[2][1] as number;
     const remaining = Math.max(0, maxRequests - requestCount);
+    const resetTime = now + windowMs;
 
-    return { allowed: requestCount <= maxRequests, remaining };
+    return {
+      allowed: requestCount <= maxRequests,
+      remaining,
+      resetTime
+    };
   }
 
-  // ---------------- Idempotency ----------------
-  public async storeIdempotencyKey(key: string, result: IdempotencyResult, ttl: number = env.IDEMPOTENCY_KEY_TTL): Promise<void> {
-    await this.client.setex(`idempotency:${key}`, ttl, JSON.stringify(result));
+  // ==================== IDEMPOTENCY ====================
+
+  async storeIdempotencyKey(key: string, data: IdempotencyData, ttl: number = env.IDEMPOTENCY_TTL): Promise<void> {
+    const redisKey = `${this.KEY_PREFIXES.IDEMPOTENCY}${key}`;
+    await this.client.setex(redisKey, ttl, JSON.stringify(data));
   }
 
-  public async getIdempotencyKey(key: string): Promise<IdempotencyResult | null> {
-    const data = await this.client.get(`idempotency:${key}`);
+  async getIdempotencyKey(key: string): Promise<IdempotencyData | null> {
+    const redisKey = `${this.KEY_PREFIXES.IDEMPOTENCY}${key}`;
+    const data = await this.client.get(redisKey);
     return data ? JSON.parse(data) : null;
   }
 
-  // ---------------- Health Monitoring ----------------
-  public async healthCheck(): Promise<{ status: string; latency?: number }> {
-    if (!this.isConnected) return { status: 'disconnected' };
+  // ==================== DISTRIBUTED LOCKS ====================
+
+  async acquireLock(lockKey: string, ttl: number = 10): Promise<boolean> {
+    const key = `${this.KEY_PREFIXES.LOCK}${lockKey}`;
+    const result = await this.client.set(key, '1', 'PX', ttl * 1000, 'NX');
+    return result === 'OK';
+  }
+
+  async releaseLock(lockKey: string): Promise<void> {
+    const key = `${this.KEY_PREFIXES.LOCK}${lockKey}`;
+    await this.client.del(key);
+  }
+
+  // ==================== SESSION MANAGEMENT ====================
+
+  async storeSession(sessionId: string, data: any, ttl: number = env.REDIS_TTL_SESSION): Promise<void> {
+    const key = `${this.KEY_PREFIXES.SESSION}${sessionId}`;
+    await this.client.setex(key, ttl, JSON.stringify(data));
+  }
+
+  async getSession(sessionId: string): Promise<any> {
+    const key = `${this.KEY_PREFIXES.SESSION}${sessionId}`;
+    const data = await this.client.get(key);
+    return data ? JSON.parse(data) : null;
+  }
+
+  async deleteSession(sessionId: string): Promise<void> {
+    await this.client.del(`${this.KEY_PREFIXES.SESSION}${sessionId}`);
+  }
+
+  // ==================== HEALTH & UTILITIES ====================
+
+  async healthCheck(): Promise<{ status: string; latency?: number }> {
+    if (!this.isConnected) {
+      return { status: 'disconnected' };
+    }
+
     try {
       const start = Date.now();
       await this.client.ping();
       const latency = Date.now() - start;
-      return { status: 'healthy', latency };
+      
+      return {
+        status: 'healthy',
+        latency
+      };
     } catch (error: any) {
-      logger.error(`❌ Redis health check failed: ${error.message}`, { error });
+      logger.error('❌ Redis health check failed:', error);
       return { status: 'unhealthy' };
     }
   }
 
-  public isHealthy(): boolean {
+  isHealthy(): boolean {
     return this.isConnected && this.client.status === 'ready';
   }
 
-  // ---------------- Utilities ----------------
-  public async flushPattern(pattern: string): Promise<void> {
+  async flushPattern(pattern: string): Promise<void> {
     let cursor = '0';
     do {
       const [nextCursor, keys] = await this.client.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
-      if (keys.length > 0) await this.client.del(...keys);
+      if (keys.length > 0) {
+        await this.client.del(...keys);
+      }
       cursor = nextCursor;
     } while (cursor !== '0');
   }
 
-  public getClient(): Redis {
+  getClient(): Redis {
     return this.client;
   }
 }
 
-// Graceful shutdown
+// Graceful shutdown handlers
 process.on('SIGINT', async () => {
-  logger.info('🔄 SIGINT: closing Redis connection...');
+  logger.info('🔄 Received SIGINT, closing Redis connection...');
   await RedisManager.getInstance().disconnect();
 });
 
 process.on('SIGTERM', async () => {
-  logger.info('🔄 SIGTERM: closing Redis connection...');
+  logger.info('🔄 Received SIGTERM, closing Redis connection...');
   await RedisManager.getInstance().disconnect();
 });
 
