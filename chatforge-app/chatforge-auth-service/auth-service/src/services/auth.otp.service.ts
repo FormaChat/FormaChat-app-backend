@@ -76,7 +76,7 @@ export class OTPService {
         metadata
       });
 
-      logger.info('OTP generated', {userId, type, otpId});
+      logger.info('OTP generated', {userId, type, otpId, otp});
 
 
       // TODO: Publish otp.generated event (with otpid only, not actual otp)

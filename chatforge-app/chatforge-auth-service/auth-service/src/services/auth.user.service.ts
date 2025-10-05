@@ -1,8 +1,6 @@
 import { UserModel, IUser, AuthLogModel } from '../persistence/auth.user.models';
 import { PasswordService } from './auth.password.service';
 import { AuditService } from './auth.audit.service';
-import { CryptoUtils } from '../utils/auth.crypto.utils';
-import { env } from '../config/auth.env';
 import { createLogger } from '../utils/auth.logger.utils';
 
 const logger = createLogger('user-service');
