@@ -4,6 +4,8 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 // Interfaces
 // -----------------------------
 export interface IUser extends Document {
+
+  _id: mongoose.Types.ObjectId;
   // Core Identity (for authentication only)
   email: string;
   passwordHash: string;
@@ -27,6 +29,7 @@ export interface IUser extends Document {
 }
 
 export interface IOTP extends Document {
+  _id: mongoose.Types.ObjectId;
   userId: mongoose.Types.ObjectId;
   type: 'email_verification' | 'password_reset' | '2fa';
   hashedOTP: string;
@@ -41,6 +44,7 @@ export interface IOTP extends Document {
 }
 
 export interface IRefreshToken extends Document {
+  _id: mongoose.Types.ObjectId;
   userId: mongoose.Types.ObjectId;
   tokenHash: string;
   expiresAt: Date;
@@ -53,6 +57,7 @@ export interface IRefreshToken extends Document {
 }
 
 export interface IAuthLog extends Document {
+  _id: mongoose.Types.ObjectId;
   userId?: mongoose.Types.ObjectId;
   eventType: 
     | 'login' 
