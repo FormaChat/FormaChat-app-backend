@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { z, ZodError } from 'zod';
 import { createLogger, getRequestId } from '../utils/auth.logger.utils';
+import { OTPType } from '../types/auth.types';
 
 const passwordRequirements = 'Password must be at least 8 characters and contain uppercase, lowercase, and a number';
 
@@ -66,6 +67,18 @@ export const requestPasswordResetSchema = z.object({
     .trim()
 });
 
+export const generateOTPSchema = z.object({
+  email: z.string()
+    .min(1, 'Email is required')
+    .email('Invalid email format')
+    .toLowerCase()
+    .trim(),
+  
+  type: z.nativeEnum(OTPType, {
+    message: `OTP type must be one of: ${Object.values(OTPType).join(', ')}`
+  })
+});
+
 export const verifyOtpSchema = z.object({
   email: z.string()
     .min(1, 'Email is required')
@@ -75,7 +88,14 @@ export const verifyOtpSchema = z.object({
   
   otp: z.string()
     .length(6, 'OTP must be 6 digits')
-    .regex(/^\d+$/, 'OTP must contain only numbers')
+    .regex(/^\d+$/, 'OTP must contain only numbers'),
+
+  type: z.nativeEnum(OTPType)
+});
+
+export const deleteAccountSchema = z.object({
+  password: z.string()
+    .min(1, 'Password is required for account deletion')
 });
 
 export const changePasswordSchema = z.object({

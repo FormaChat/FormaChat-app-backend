@@ -41,7 +41,6 @@ POST /api/v1/auth/password/validate
 
 Token:
 POST /api/v1/auth/token/refresh
-POST /api/v1/auth/token/revoke
 POST /api/v1/auth/token/validate
 
 User:

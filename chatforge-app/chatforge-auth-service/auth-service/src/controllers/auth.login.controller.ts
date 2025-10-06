@@ -40,6 +40,13 @@ export class LoginController {
         });
       }
 
+      // ← ADD THIS: Revoke all existing sessions before creating new one
+      await sessionService.revokeAllUserSessions(loginResult.user!.id, {
+        ipAddress,
+        userAgent,
+        reason: 'New login from different location'
+      });
+
       // Generate tokens for successful login
       const tokens = await sessionService.createSession(
         loginResult.user!.id,

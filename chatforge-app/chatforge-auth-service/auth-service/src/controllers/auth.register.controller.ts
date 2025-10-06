@@ -159,36 +159,36 @@ export class RegisterController {
   /**
    * Check if email is available
    */
-  async checkEmailAvailability(req: Request, res: Response) {
-    try {
-      const { email } = req.query;
+  // async checkEmailAvailability(req: Request, res: Response) {
+  //   try {
+  //     const { email } = req.query;
 
-      if (!email || typeof email !== 'string') {
-        return res.status(400).json({
-          success: false,
-          error: 'Email query parameter is required'
-        });
-      }
+  //     if (!email || typeof email !== 'string') {
+  //       return res.status(400).json({
+  //         success: false,
+  //         error: 'Email query parameter is required'
+  //       });
+  //     }
 
-      const user = await userService.getUserByEmail(email);
+  //     const user = await userService.getUserByEmail(email);
       
-      res.json({
-        success: true,
-        data: {
-          email,
-          available: !user
-        }
-      });
+  //     res.json({
+  //       success: true,
+  //       data: {
+  //         email,
+  //         available: !user
+  //       }
+  //     });
 
-    } catch (error: any) {
-      logger.error('Email availability check error:', error);
+  //   } catch (error: any) {
+  //     logger.error('Email availability check error:', error);
       
-      res.status(500).json({
-        success: false,
-        error: 'Failed to check email availability'
-      });
-    }
-  }
+  //     res.status(500).json({
+  //       success: false,
+  //       error: 'Failed to check email availability'
+  //     });
+  //   }
+  // }
 }
 
 export const registerController = new RegisterController();

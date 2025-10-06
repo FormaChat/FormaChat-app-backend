@@ -3,6 +3,7 @@ import { otpService } from '../services/auth.otp.service';
 import { userService } from '../services/auth.user.service';
 import { AuditService } from '../services/auth.audit.service';
 import { createLogger } from '../utils/auth.logger.utils';
+import { OTPType } from '../types/auth.types';
 
 const logger = createLogger('otp-controller');
 
@@ -24,7 +25,7 @@ export class OTPController {
       }
 
       // Validate OTP type
-      const validTypes = ['email_verification', 'password_reset', '2fa'];
+      const validTypes = Object.values(OTPType);
       if (!validTypes.includes(type)) {
         return res.status(400).json({
           success: false,

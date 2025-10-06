@@ -3,6 +3,8 @@ import { userService } from '../services/auth.user.service';
 import { sessionService } from '../services/auth.session.service';
 import { AuditService } from '../services/auth.audit.service';
 import { createLogger } from '../utils/auth.logger.utils';
+import { success } from 'zod';
+import { PasswordService } from '../services/auth.password.service';
 
 const logger = createLogger('user-controller');
 
@@ -131,6 +133,7 @@ export class UserController {
   async deactivateAccount(req: Request, res: Response) {
     try {
       const userId = (req as any).user?.userId;
+      const {password} = req.body;
       const ipAddress = req.ip ?? 'unknown';
       const userAgent = req.get('User-Agent') || 'unknown';
 
@@ -138,6 +141,32 @@ export class UserController {
         return res.status(401).json({
           success: false,
           error: 'Authentication required'
+        });
+      }
+
+      if (!password) {
+        return res.status(400).json({
+          success: false,
+          error: 'Password comfirmation required'
+        })
+      }
+
+      // Verify password before deletion
+      const user = await userService.getUserProfile(userId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          error: 'User not found'
+        });
+      }
+
+      // Validate password (you'll need to add this method to userService or use PasswordService)
+      const isPasswordValid = await PasswordService.comparePassword(password, user.passwordHash);
+    
+      if (!isPasswordValid) {
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid password'
         });
       }
 
@@ -185,7 +214,7 @@ export class UserController {
 
       res.json({
         success: true,
-        data: sessions || []
+        data: sessions 
       });
 
     } catch (error: any) {

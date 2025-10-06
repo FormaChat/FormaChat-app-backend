@@ -11,6 +11,7 @@ export interface SessionInfo {
   };
   createdAt: Date;
   expiresAt: Date;
+  refreshToken: string;
 }
 
 /**
@@ -70,21 +71,21 @@ export class SessionService {
   /**
    * Get active session information
    */
-  async getActiveSessionInfo(userId: string): Promise<SessionInfo | null> {
+  async getActiveSessionInfo(userId: string): Promise<SessionInfo[]> {
     try {
       const sessions = await tokenService.getActiveSessions(userId);
       
       if (sessions.length === 0) {
-        return null;
+        return [];
       }
 
-      // With single session, return the first (and only) session
-      const session = sessions[0];
-      return {
+      // Map all sessions to SessionInfo format
+      return sessions.map(session => ({
         deviceInfo: session.deviceInfo,
         createdAt: session.createdAt,
-        expiresAt: session.expiresAt
-      };
+        expiresAt: session.expiresAt,
+        refreshToken: session.refreshToken // Add this so we can revoke it
+      }));
     } catch (error:any) {
       logger.error('Error getting session info:', error);
       throw new Error('SESSION_INFO_FETCH_FAILED');
@@ -140,6 +141,34 @@ export class SessionService {
     } catch (error:any) {
       logger.error('Error validating session:', error);
       return { valid: false };
+    }
+  }
+
+  /**
+   * Revoking all existing sessions to ensure single session of users per login 
+  */
+
+  async revokeAllUserSessions(
+    userId: string, 
+    context: { ipAddress: string; userAgent: string; reason?: string }
+  ): Promise<void> {
+    try {
+      // Get all active sessions for user
+      const sessions = await this.getActiveSessionInfo(userId);
+      
+      // Revoke each session
+      for (const session of sessions) {
+        await this.revokeCurrentSession(session.refreshToken, context);
+      }
+      
+      logger.info('All user sessions revoked', { 
+        userId, 
+        sessionCount: sessions.length,
+        reason: context.reason 
+      });
+    } catch (error: any) {
+      logger.error('Failed to revoke all user sessions', { userId, error: error.message });
+      throw error;
     }
   }
 }

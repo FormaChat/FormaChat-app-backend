@@ -56,38 +56,38 @@ export class TokenController {
   /**
    * Revoke refresh token (logout)
    */
-  async revokeToken(req: Request, res: Response) {
-    try {
-      const { refreshToken } = req.body;
-      const ipAddress = req.ip ?? 'unknown';
-      const userAgent = req.get('User-Agent') || 'unknown';
+  // async revokeToken(req: Request, res: Response) {
+  //   try {
+  //     const { refreshToken } = req.body;
+  //     const ipAddress = req.ip ?? 'unknown';
+  //     const userAgent = req.get('User-Agent') || 'unknown';
 
-      if (!refreshToken) {
-        return res.status(400).json({
-          success: false,
-          error: 'Refresh token is required'
-        });
-      }
+  //     if (!refreshToken) {
+  //       return res.status(400).json({
+  //         success: false,
+  //         error: 'Refresh token is required'
+  //       });
+  //     }
 
-      await sessionService.revokeCurrentSession(refreshToken, {
-        ipAddress,
-        userAgent
-      });
+  //     await sessionService.revokeCurrentSession(refreshToken, {
+  //       ipAddress,
+  //       userAgent
+  //     });
 
-      res.json({
-        success: true,
-        message: 'Logged out successfully'
-      });
+  //     res.json({
+  //       success: true,
+  //       message: 'Logged out successfully'
+  //     });
 
-    } catch (error: any) {
-      logger.error('Token revocation error:', error);
+  //   } catch (error: any) {
+  //     logger.error('Token revocation error:', error);
       
-      res.status(500).json({
-        success: false,
-        error: 'Failed to logout'
-      });
-    }
-  }
+  //     res.status(500).json({
+  //       success: false,
+  //       error: 'Failed to logout'
+  //     });
+  //   }
+  // }
 
   /**
    * Validate access token
