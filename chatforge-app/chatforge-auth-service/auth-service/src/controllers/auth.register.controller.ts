@@ -7,7 +7,7 @@ const logger = createLogger('register-controller');
 
 export class RegisterController {
   /**
-   * Register new user
+   * Register new user.
    */
   async register(req: Request, res: Response) {
     try {

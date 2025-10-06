@@ -140,7 +140,7 @@ export class OTPController {
   }
 
   /**
-   * Resend OTP
+   * Resend OTP.
    */
   async resendOTP(req: Request, res: Response) {
     try {

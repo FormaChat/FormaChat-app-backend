@@ -60,7 +60,7 @@ router.post(
   registerRateLimiter,
   validateRequest(registerSchema),
   idempotencyMiddleware,
-  asyncHandler(registerController.register)
+  asyncHandler(registerController.register) 
 );
 
 // Verify email with OTP

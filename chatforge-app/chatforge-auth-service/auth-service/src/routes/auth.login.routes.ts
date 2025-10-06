@@ -54,7 +54,6 @@ router.post(
   loggerMiddleware,
   loginRateLimiter,
   validateRequest(loginSchema),
-  idempotencyMiddleware,
   asyncHandler(loginController.login)
 );
 

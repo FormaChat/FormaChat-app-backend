@@ -20,11 +20,18 @@ export const registerSchema = z.object({
       passwordRequirements
     ),
   
-  name: z.string()
+  firstName: z.string()
+    .min(2, 'Name must be at least 2 characters')
+    .max(100, 'Name is too long')
+    .trim()
+    .regex(/^[a-zA-Z\s'-]+$/, 'Name can only contain letters, spaces, hyphens, and apostrophes'),
+
+  lastName: z.string()
     .min(2, 'Name must be at least 2 characters')
     .max(100, 'Name is too long')
     .trim()
     .regex(/^[a-zA-Z\s'-]+$/, 'Name can only contain letters, spaces, hyphens, and apostrophes')
+
 });
 
 export const loginSchema = z.object({

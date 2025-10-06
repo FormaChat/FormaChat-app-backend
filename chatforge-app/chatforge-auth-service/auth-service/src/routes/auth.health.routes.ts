@@ -5,7 +5,7 @@ import { asyncHandler } from '../middleware/auth.errorHandler.middleware';
 const router = Router();
 
 // Basic health check
-router.get('/health', asyncHandler(healthController.healthCheck));
+router.get('/health', asyncHandler(healthController.healthCheck)); 
 
 // Detailed health with dependencies
 router.get('/health/detailed', asyncHandler(healthController.healthDetailed));
