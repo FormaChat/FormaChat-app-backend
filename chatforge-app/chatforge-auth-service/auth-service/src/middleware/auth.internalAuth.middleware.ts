@@ -3,6 +3,8 @@ import crypto from 'crypto';
 import { AuthError } from './auth.errorHandler.middleware';
 import { createLogger, getRequestId } from '../utils/auth.logger.utils';
 
+
+
 export const internalAuthMiddleware = (req: Request, res: Response, next: NextFunction) => {
   const requestId = getRequestId(req);
   const logger = createLogger(requestId);

@@ -93,6 +93,37 @@ export const verifyOtpSchema = z.object({
   type: z.nativeEnum(OTPType)
 });
 
+export const resendOTPSchema = z.object({
+  email: z.string()
+    .min(1, 'Email is required')
+    .email('Invalid email format')
+    .toLowerCase()
+    .trim(),
+  
+  type: z.nativeEnum(OTPType, {
+    message: `OTP type must be one of: ${Object.values(OTPType).join(', ')}`
+  })
+});
+
+export const updateProfileSchema = z.object({
+  firstName: z.string()
+    .min(2, 'First name must be at least 2 characters')
+    .max(100, 'First name is too long')
+    .trim()
+    .regex(/^[a-zA-Z\s'-]+$/, 'First name can only contain letters, spaces, hyphens, and apostrophes')
+    .optional(),
+  
+  lastName: z.string()
+    .min(2, 'Last name must be at least 2 characters')
+    .max(100, 'Last name is too long')
+    .trim()
+    .regex(/^[a-zA-Z\s'-]+$/, 'Last name can only contain letters, spaces, hyphens, and apostrophes')
+    .optional()
+}).refine((data) => data.firstName || data.lastName, {
+  message: 'At least one field must be provided for update'
+});
+
+// deleteAccountSchema already created earlier:
 export const deleteAccountSchema = z.object({
   password: z.string()
     .min(1, 'Password is required for account deletion')
@@ -118,6 +149,11 @@ export const changePasswordSchema = z.object({
 }).refine((data) => data.currentPassword !== data.newPassword, {
   message: 'New password must be different from current password',
   path: ['newPassword']
+});
+
+export const validatePasswordSchema = z.object({
+  password: z.string()
+    .min(1, 'Password is required')
 });
 
 export const validateRequest = (schema: z.ZodSchema) => {

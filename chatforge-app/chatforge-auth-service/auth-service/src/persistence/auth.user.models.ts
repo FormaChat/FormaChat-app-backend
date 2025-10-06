@@ -153,7 +153,7 @@ const UserSchema: Schema<IUser> = new Schema({
 // -----------------------------
 // User Schema Indexes
 // -----------------------------
-UserSchema.index({ email: 1 }, { unique: true });
+
 UserSchema.index({ isActive: 1 });
 UserSchema.index({ lockUntil: 1 });
 
@@ -180,7 +180,7 @@ const OTPSchema: Schema<IOTP> = new Schema({
   expiresAt: { 
     type: Date, 
     required: true,
-    index: true 
+   
   },
   used: { 
     type: Boolean, 
@@ -219,7 +219,7 @@ const RefreshTokenSchema: Schema<IRefreshToken> = new Schema({
   expiresAt: { 
     type: Date, 
     required: true,
-    index: true 
+   
   },
   isRevoked: { 
     type: Boolean, 
