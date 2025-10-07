@@ -1,0 +1,1 @@
+// Core email interfaces
