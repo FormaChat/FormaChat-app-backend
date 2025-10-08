@@ -14,6 +14,10 @@ export const env = cleanEnv(process.env, {
   SERVICE_NAME: str({ default: 'auth-service' }),
   SERVICE_VERSION: str({ default: '1.0.0' }),
 
+   // Internal Service Security
+  INTERNAL_API_KEY: str(), // Shared secret across all microservices
+  INTERNAL_SERVICE_SECRET: str(), // Additional layer for internal service-to-service communication
+
   // Database
   MONGODB_URI: str(),
   MONGODB_DB_NAME: str({ default: 'auth_service' }),
@@ -64,7 +68,7 @@ export const env = cleanEnv(process.env, {
   EMAIL_SERVICE_URL: str({ default: 'http://localhost:4000' }),
   EMAIL_SERVICE_API_KEY: str({ default: '' }),
 
-  // Logging
+  // Logging.
   LOG_LEVEL: str({ choices: ['error', 'warn', 'info', 'debug'], default: 'info' }),
   LOG_FILE_PATH: str({ default: './logs/auth-service.log' }),
 

@@ -1,7 +1,7 @@
-// auth.rabbitmq.js
+// email.rabbitmq.js
 const amqp = require('amqplib');
-const { env, isDevelopment } = require('./auth.env');
-const { logger } = require('../utils/auth.logger.utils');
+const { env, isDevelopment } = require('./email.env');
+const { logger } = require('../utils/email.logger.utils');
 
 class RabbitMQConnection {
   static instance;
@@ -12,25 +12,54 @@ class RabbitMQConnection {
   maxRetries = 5;
   retryDelay = 5000; // 5 seconds.
 
+  // Exchanges from different services
   exchanges = {
-    auth: env.RABBITMQ_EXCHANGE,
+    email: env.RABBITMQ_EXCHANGE, // email service exchange
+    auth: 'auth.exchange', // auth service exchange
+    // Add other service exchanges here as needed
+    // order: 'order.exchange',
+    // user: 'user.exchange',
     dlx: `${env.RABBITMQ_EXCHANGE}.dlx`
   };
 
+  // Queues for consuming messages from other services
   queues = {
-    userCreated: 'auth.user.created',
-    otpGenerated: 'auth.otp.generated',
-    passwordChanged: 'auth.password.changed',
-    userDeactivated: 'auth.user.deactivated',
-    emailResponse: 'auth.email.response'
+    // Consumer queues - receiving messages from other services
+    authUserCreated: 'auth.user.created',
+    authOtpGenerated: 'auth.otp.generated',
+    authPasswordResetRequested: 'auth.password.reset.requested',
+    // Add more consumer queues from auth service
+    // authEmailVerification: 'auth.email.verification',
+    
+    // Add consumer queues from other services
+    // orderConfirmation: 'order.confirmation',
+    // userNotification: 'user.notification',
+
+    // Producer queues - sending messages to other services
+    emailStatusUpdate: 'email.status.update', // Generic status updates
+    authEmailResponse: 'auth.email.response', // Specific response to auth service
+    // Add more producer queues for other services
+    // orderEmailStatus: 'order.email.status',
+    
+    // DLQ
+    emailDlq: 'email.dlq'
   };
 
+  // Routing keys for publishing messages
   routingKeys = {
-    userCreated: 'user.created',
-    otpGenerated: 'otp.generated',
-    passwordChanged: 'password.changed',
-    userDeactivated: 'user.deactivated',
-    emailResponse: 'email.response'
+    // Producer routing keys
+    emailStatusUpdate: 'email.status.update',
+    emailResponse: 'email.response', // Generic response routing key
+    authEmailResponse: 'email.response.auth', // Auth-specific response
+    // Add more producer routing keys
+    // orderEmailStatus: 'email.status.order',
+    
+    // Consumer routing keys (for binding)
+    authUserCreated: 'user.created',
+    authOtpGenerated: 'otp.generated',
+    authPasswordResetRequested: 'password.reset.requested',
+    // Add more consumer routing keys from other services
+    // orderConfirmation: 'order.confirmed',
   };
 
   constructor() {}
@@ -108,13 +137,19 @@ class RabbitMQConnection {
     if (!this.channel) throw new Error('Channel not available');
 
     try {
-      await this.channel.assertExchange(this.exchanges.auth, 'topic', { durable: true });
+      // Assert email service exchange (for publishing)
+      await this.channel.assertExchange(this.exchanges.email, 'topic', { durable: true });
+      
+      // Assert DLX and DLQ
       await this.channel.assertExchange(this.exchanges.dlx, 'direct', { durable: true });
-      await this.channel.assertQueue('auth.dlq', { durable: true });
-      await this.channel.bindQueue('auth.dlq', this.exchanges.dlx, 'failed');
+      await this.channel.assertQueue(this.queues.emailDlq, { durable: true });
+      await this.channel.bindQueue(this.queues.emailDlq, this.exchanges.dlx, 'failed');
 
-      await this.declareProducerQueues();
+      // Setup consumer queues (receiving messages from other services)
       await this.declareConsumerQueues();
+      
+      // Setup producer queues (sending messages to other services)
+      await this.declareProducerQueues();
 
       logger.info('RabbitMQ infrastructure setup completed');
     } catch (error) {
@@ -123,7 +158,7 @@ class RabbitMQConnection {
     }
   }
 
-  async declareProducerQueues() {
+  async declareConsumerQueues() {
     if (!this.channel) return;
 
     const options = {
@@ -131,29 +166,45 @@ class RabbitMQConnection {
       arguments: {
         'x-dead-letter-exchange': this.exchanges.dlx,
         'x-dead-letter-routing-key': 'failed',
-        'x-message-ttl': 86400000
+        'x-message-ttl': 86400000 // 24 hours
       }
     };
 
-    // User created queue
-    await this.channel.assertQueue(this.queues.userCreated, options);
-    await this.channel.bindQueue(this.queues.userCreated, this.exchanges.auth, this.routingKeys.userCreated);
+    // Consumer queues from AUTH service
+    await this.channel.assertQueue(this.queues.authUserCreated, options);
+    await this.channel.bindQueue(
+      this.queues.authUserCreated,
+      this.exchanges.auth,
+      this.routingKeys.authUserCreated
+    );
 
-    // OTP generated queue
-    await this.channel.assertQueue(this.queues.otpGenerated, options);
-    await this.channel.bindQueue(this.queues.otpGenerated, this.exchanges.auth, this.routingKeys.otpGenerated);
+    await this.channel.assertQueue(this.queues.authOtpGenerated, options);
+    await this.channel.bindQueue(
+      this.queues.authOtpGenerated,
+      this.exchanges.auth,
+      this.routingKeys.authOtpGenerated
+    );
 
-    // Password changed queue
-    await this.channel.assertQueue(this.queues.passwordChanged, options);
-    await this.channel.bindQueue(this.queues.passwordChanged, this.exchanges.auth, this.routingKeys.passwordChanged);
+    await this.channel.assertQueue(this.queues.authPasswordResetRequested, options);
+    await this.channel.bindQueue(
+      this.queues.authPasswordResetRequested,
+      this.exchanges.auth,
+      this.routingKeys.authPasswordResetRequested
+    );
 
-    // User deactivated queue
-    await this.channel.assertQueue(this.queues.userDeactivated, options);
-    await this.channel.bindQueue(this.queues.userDeactivated, this.exchanges.auth, this.routingKeys.userDeactivated);
+    // Add more consumer queues from other services here
+    // Example for ORDER service:
+    // await this.channel.assertQueue(this.queues.orderConfirmation, options);
+    // await this.channel.bindQueue(
+    //   this.queues.orderConfirmation,
+    //   this.exchanges.order,
+    //   this.routingKeys.orderConfirmation
+    // );
+
+    logger.info('Consumer queues declared and bound');
   }
 
-
-  async declareConsumerQueues() {
+  async declareProducerQueues() {
     if (!this.channel) return;
 
     const options = {
@@ -164,8 +215,32 @@ class RabbitMQConnection {
       }
     };
 
-    await this.channel.assertQueue(this.queues.emailResponse, options);
-    await this.channel.bindQueue(this.queues.emailResponse, this.exchanges.auth, this.routingKeys.emailResponse);
+    // Producer queue for email status updates (generic)
+    await this.channel.assertQueue(this.queues.emailStatusUpdate, options);
+    await this.channel.bindQueue(
+      this.queues.emailStatusUpdate,
+      this.exchanges.email,
+      this.routingKeys.emailStatusUpdate
+    );
+
+    // Producer queue for auth service responses
+    await this.channel.assertQueue(this.queues.authEmailResponse, options);
+    await this.channel.bindQueue(
+      this.queues.authEmailResponse,
+      this.exchanges.auth, // Bind to auth exchange so auth service can consume it
+      this.routingKeys.authEmailResponse
+    );
+
+    // Add more producer queues for other services here
+    // Example for ORDER service:
+    // await this.channel.assertQueue(this.queues.orderEmailStatus, options);
+    // await this.channel.bindQueue(
+    //   this.queues.orderEmailStatus,
+    //   this.exchanges.order,
+    //   this.routingKeys.orderEmailStatus
+    // );
+
+    logger.info('Producer queues declared and bound');
   }
 
   async handleConnectionError() {
@@ -196,6 +271,17 @@ class RabbitMQConnection {
     }
   }
 
+  /**
+   * Publish message to a queue
+   * @param {string} routingKey - The routing key name from this.routingKeys
+   * @param {object} data - The message payload
+   * @param {object} options - Publishing options
+   * @param {string} options.eventId - Unique event identifier
+   * @param {string} options.eventType - Type of event
+   * @param {boolean} options.persistent - Message persistence (default: true)
+   * @param {number} options.priority - Message priority (default: 0)
+   * @param {string} options.targetExchange - Override default exchange (optional)
+   */
   async publishMessage(routingKey, data, options) {
     if (!this.channel || !this.isConnected) throw new Error('RabbitMQ not connected');
 
@@ -207,21 +293,30 @@ class RabbitMQConnection {
     };
 
     try {
+      // Use targetExchange if provided, otherwise use email exchange
+      const exchange = options.targetExchange || this.exchanges.email;
+      
       const published = this.channel.publish(
-        this.exchanges.auth,
+        exchange,
         this.routingKeys[routingKey],
         Buffer.from(JSON.stringify(message)),
         { persistent: options.persistent ?? true, priority: options.priority ?? 0 }
       );
 
       if (!published) logger.warn('Message might not have been routed', { routingKey, eventId: options.eventId });
-      logger.info('Message published', { routingKey, eventId: options.eventId });
+      logger.info('Message published', { routingKey, eventId: options.eventId, exchange });
     } catch (error) {
       logger.error('Failed to publish message', { routingKey, eventId: options.eventId, error: error.message || 'Unknown error' });
       throw error;
     }
   }
 
+  /**
+   * Consume messages from a queue
+   * @param {string} queueName - The queue name from this.queues
+   * @param {function} handler - Message handler function
+   * @param {object} options - Consumer options
+   */
   async consumeMessages(queueName, handler, options = {}) {
     if (!this.channel || !this.isConnected) throw new Error('RabbitMQ not connected');
 
@@ -245,6 +340,36 @@ class RabbitMQConnection {
     } catch (error) {
       logger.error('Failed to setup consumer', { queue: queueName, error: error.message || 'Unknown error' });
       throw error;
+    }
+  }
+
+  /**
+   * Publish message to DLQ
+   * @param {object} message - Original message
+   * @param {string} reason - Failure reason
+   * @param {object} metadata - Additional metadata
+   */
+  async publishToDLQ(message, reason, metadata = {}) {
+    if (!this.channel || !this.isConnected) throw new Error('RabbitMQ not connected');
+
+    const dlqMessage = {
+      originalMessage: message,
+      reason,
+      timestamp: Date.now(),
+      service: 'email',
+      metadata
+    };
+
+    try {
+      this.channel.publish(
+        this.exchanges.dlx,
+        'failed',
+        Buffer.from(JSON.stringify(dlqMessage)),
+        { persistent: true }
+      );
+      logger.info('Message published to DLQ', { reason });
+    } catch (error) {
+      logger.error('Failed to publish to DLQ', { error: error.message || 'Unknown error' });
     }
   }
 
@@ -278,5 +403,6 @@ module.exports = {
   disconnectRabbitMQ: () => rabbitmq.disconnect(),
   publishMessage: (routingKey, data, options) => rabbitmq.publishMessage(routingKey, data, options),
   consumeMessages: (queueName, handler, options) => rabbitmq.consumeMessages(queueName, handler, options),
+  publishToDLQ: (message, reason, metadata) => rabbitmq.publishToDLQ(message, reason, metadata),
   getRabbitMQHealth: () => rabbitmq.healthCheck()
 };

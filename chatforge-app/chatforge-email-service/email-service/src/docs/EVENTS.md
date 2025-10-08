@@ -1,1 +1,0 @@
-# Event and schema documentation

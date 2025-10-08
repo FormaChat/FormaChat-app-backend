@@ -209,7 +209,7 @@ export class Logger {
       userAgent
     });
   }
-}
+} 
 
 // Helper function to create contextual logger
 export const createLogger = (requestId?: string, userId?: string): Logger => {
