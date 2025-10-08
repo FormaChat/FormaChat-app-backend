@@ -2,6 +2,7 @@
 const amqp = require('amqplib');
 const { env, isDevelopment } = require('./auth.env');
 const { logger } = require('../utils/auth.logger.utils');
+const { email } = require('zod');
 
 class RabbitMQConnection {
   static instance;
@@ -13,23 +14,30 @@ class RabbitMQConnection {
   retryDelay = 5000; // 5 seconds.
 
   exchanges = {
-    auth: env.RABBITMQ_EXCHANGE,
-    dlx: `${env.RABBITMQ_EXCHANGE}.dlx`
+    auth: 'auth.exchange',        // For auth → email messages
+    email: 'email.exchange',      // For email → auth responses
+    dlx: 'auth.exchange.dlx'
   };
 
   queues = {
+    // Producer queues = sending messages to email service
     userCreated: 'auth.user.created',
     otpGenerated: 'auth.otp.generated',
     passwordChanged: 'auth.password.changed',
     userDeactivated: 'auth.user.deactivated',
+
+    // Consumer queue recieveing message from email service
     emailResponse: 'auth.email.response'
   };
 
   routingKeys = {
+    // Producer routing keys
     userCreated: 'user.created',
     otpGenerated: 'otp.generated',
     passwordChanged: 'password.changed',
     userDeactivated: 'user.deactivated',
+
+    //consumer routing keys
     emailResponse: 'email.response'
   };
 
@@ -137,19 +145,19 @@ class RabbitMQConnection {
 
     // User created queue
     await this.channel.assertQueue(this.queues.userCreated, options);
-    await this.channel.bindQueue(this.queues.userCreated, this.exchanges.auth, this.routingKeys.userCreated);
+    await this.channel.bindQueue(this.queues.userCreated, this.exchanges.email, this.routingKeys.userCreated);
 
     // OTP generated queue
     await this.channel.assertQueue(this.queues.otpGenerated, options);
-    await this.channel.bindQueue(this.queues.otpGenerated, this.exchanges.auth, this.routingKeys.otpGenerated);
+    await this.channel.bindQueue(this.queues.otpGenerated, this.exchanges.email, this.routingKeys.otpGenerated);
 
     // Password changed queue
     await this.channel.assertQueue(this.queues.passwordChanged, options);
-    await this.channel.bindQueue(this.queues.passwordChanged, this.exchanges.auth, this.routingKeys.passwordChanged);
+    await this.channel.bindQueue(this.queues.passwordChanged, this.exchanges.email, this.routingKeys.passwordChanged);
 
     // User deactivated queue
     await this.channel.assertQueue(this.queues.userDeactivated, options);
-    await this.channel.bindQueue(this.queues.userDeactivated, this.exchanges.auth, this.routingKeys.userDeactivated);
+    await this.channel.bindQueue(this.queues.userDeactivated, this.exchanges.email, this.routingKeys.userDeactivated);
   }
 
 

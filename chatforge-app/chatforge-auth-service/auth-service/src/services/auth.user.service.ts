@@ -4,9 +4,8 @@ import { AuditService } from './auth.audit.service';
 import { createLogger } from '../utils/auth.logger.utils';
 
 // producers
-import { publishUserCreated } from '../events/producers/auth.user.producer';
-import { publishPasswordChanged } from '../events/producers/auth.password.producer';
-import { publishUserDeactivated } from '../events/producers/auth.account.producer';
+import { publishUserCreated, publishPasswordChanged, publishUserDeactivated  } from '../events/producers';
+
 
 
 const logger = createLogger('user-service');

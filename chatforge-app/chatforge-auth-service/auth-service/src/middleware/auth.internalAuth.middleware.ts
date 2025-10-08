@@ -22,6 +22,7 @@ export const internalAuthMiddleware = (req: Request, res: Response, next: NextFu
   const expectedToken = process.env.INTERNAL_SERVICE_SECRET!;
   
   // Timing-safe comparison to prevent timing attacks
+  
   try {
     const tokenBuffer = Buffer.from(serviceToken);
     const expectedBuffer = Buffer.from(expectedToken);

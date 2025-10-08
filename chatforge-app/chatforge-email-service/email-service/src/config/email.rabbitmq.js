@@ -12,56 +12,37 @@ class RabbitMQConnection {
   maxRetries = 5;
   retryDelay = 5000; // 5 seconds.
 
-  // Exchanges from different services
   exchanges = {
-    email: env.RABBITMQ_EXCHANGE, // email service exchange
-    auth: 'auth.exchange', // auth service exchange
-    // Add other service exchanges here as needed
-    // order: 'order.exchange',
-    // user: 'user.exchange',
-    dlx: `${env.RABBITMQ_EXCHANGE}.dlx`
+    email: 'email.exchange',      // For email → auth responses  
+    auth: 'auth.exchange',        // For auth → email messages
+    dlx: 'email.exchange.dlx'
   };
 
-  // Queues for consuming messages from other services
   queues = {
-    // Consumer queues - receiving messages from other services
+    // Consumer queues - receiving messages from auth services
     authUserCreated: 'auth.user.created',
     authOtpGenerated: 'auth.otp.generated',
-    authPasswordResetRequested: 'auth.password.reset.requested',
-    // Add more consumer queues from auth service
-    // authEmailVerification: 'auth.email.verification',
+    authPasswordChanged: 'auth.password.changed',
+    authUserDeactivated: 'auth.user.deactivated',
     
-    // Add consumer queues from other services
-    // orderConfirmation: 'order.confirmation',
-    // userNotification: 'user.notification',
-
-    // Producer queues - sending messages to other services
-    emailStatusUpdate: 'email.status.update', // Generic status updates
-    authEmailResponse: 'auth.email.response', // Specific response to auth service
-    // Add more producer queues for other services
-    // orderEmailStatus: 'order.email.status',
+    // Producer queues - sending messages to auth services
+    authEmailResponse: 'auth.email.response',
     
     // DLQ
     emailDlq: 'email.dlq'
   };
 
-  // Routing keys for publishing messages
   routingKeys = {
-    // Producer routing keys
-    emailStatusUpdate: 'email.status.update',
-    emailResponse: 'email.response', // Generic response routing key
-    authEmailResponse: 'email.response.auth', // Auth-specific response
-    // Add more producer routing keys
-    // orderEmailStatus: 'email.status.order',
+    // Producer routing keys (for publishing responses)
+    authEmailResponse: 'email.response',
     
-    // Consumer routing keys (for binding)
+    // Consumer routing keys (for binding to receive events)
     authUserCreated: 'user.created',
     authOtpGenerated: 'otp.generated',
-    authPasswordResetRequested: 'password.reset.requested',
-    // Add more consumer routing keys from other services
-    // orderConfirmation: 'order.confirmed',
+    authPasswordChanged: 'password.changed',
+    authUserDeactivated: 'user.deactivated',
   };
-
+  
   constructor() {}
 
   static getInstance() {
@@ -174,33 +155,31 @@ class RabbitMQConnection {
     await this.channel.assertQueue(this.queues.authUserCreated, options);
     await this.channel.bindQueue(
       this.queues.authUserCreated,
-      this.exchanges.auth,
+      this.exchanges.email,
       this.routingKeys.authUserCreated
     );
 
     await this.channel.assertQueue(this.queues.authOtpGenerated, options);
     await this.channel.bindQueue(
       this.queues.authOtpGenerated,
-      this.exchanges.auth,
+      this.exchanges.email,
       this.routingKeys.authOtpGenerated
     );
 
-    await this.channel.assertQueue(this.queues.authPasswordResetRequested, options);
+    await this.channel.assertQueue(this.queues.authPasswordChanged, options);
     await this.channel.bindQueue(
-      this.queues.authPasswordResetRequested,
-      this.exchanges.auth,
-      this.routingKeys.authPasswordResetRequested
+      this.queues.authPasswordChanged,
+      this.exchanges.email,
+      this.routingKeys.authPasswordChanged
     );
 
-    // Add more consumer queues from other services here
-    // Example for ORDER service:
-    // await this.channel.assertQueue(this.queues.orderConfirmation, options);
-    // await this.channel.bindQueue(
-    //   this.queues.orderConfirmation,
-    //   this.exchanges.order,
-    //   this.routingKeys.orderConfirmation
-    // );
-
+    await this.channel.assertQueue(this.queues.authUserDeactivated, options);
+    await this.channel.bindQueue(
+      this.queues.authUserDeactivated,
+      this.exchanges.email,
+      this.routingKeys.authUserDeactivated
+    );
+    
     logger.info('Consumer queues declared and bound');
   }
 
@@ -215,14 +194,6 @@ class RabbitMQConnection {
       }
     };
 
-    // Producer queue for email status updates (generic)
-    await this.channel.assertQueue(this.queues.emailStatusUpdate, options);
-    await this.channel.bindQueue(
-      this.queues.emailStatusUpdate,
-      this.exchanges.email,
-      this.routingKeys.emailStatusUpdate
-    );
-
     // Producer queue for auth service responses
     await this.channel.assertQueue(this.queues.authEmailResponse, options);
     await this.channel.bindQueue(
@@ -233,11 +204,11 @@ class RabbitMQConnection {
 
     // Add more producer queues for other services here
     // Example for ORDER service:
-    // await this.channel.assertQueue(this.queues.orderEmailStatus, options);
+    // await this.channel.assertQueue(this.queues.orderEmailResponse, options);
     // await this.channel.bindQueue(
-    //   this.queues.orderEmailStatus,
+    //   this.queues.orderEmailResponse,
     //   this.exchanges.order,
-    //   this.routingKeys.orderEmailStatus
+    //   this.routingKeys.orderEmailResponse
     // );
 
     logger.info('Producer queues declared and bound');
@@ -327,11 +298,25 @@ class RabbitMQConnection {
           if (!msg) return;
           try {
             const message = JSON.parse(msg.content.toString());
+            
+            // Track retry count in message properties
+            const retryCount = (msg.properties.headers && msg.properties.headers['x-retry-count']) || 0;
+            message.retryCount = retryCount;
+            
             await handler(message);
             if (!options.noAck) this.channel.ack(msg);
           } catch (error) {
-            logger.error('Failed to process message', { queue: queueName, error: error.message || 'Unknown error' });
-            if (!options.noAck) this.channel.nack(msg, false, false);
+            logger.error('Failed to process message', { 
+              queue: queueName, 
+              error: error.message || 'Unknown error',
+              retryCount: (msg.properties.headers && msg.properties.headers['x-retry-count']) || 0
+            });
+            
+            if (!options.noAck) {
+              // NACK without requeue - message goes to DLX/DLQ
+              // The consumer's handleMessageFailure() decides whether to retry
+              this.channel.nack(msg, false, false);
+            }
           }
         },
         { noAck: options.noAck ?? false, exclusive: options.exclusive ?? false }
