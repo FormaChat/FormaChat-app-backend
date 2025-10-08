@@ -5,6 +5,12 @@ import { redisManager } from "../config/auth.redis";
 import { env } from "../config/auth.env";
 import { createLogger } from "../utils/auth.logger.utils";
 
+// Producer
+import { UserModel } from "../persistence/auth.user.models";
+import { publishOTPGenerated } from "../events/producers/auth.otp.producer";
+
+
+
 const logger = createLogger("otp-service");
 
 export interface OTPGenerateOptions {
@@ -81,6 +87,17 @@ export class OTPService {
 
       // TODO: Publish otp.generated event (with otpid only, not actual otp)
       // await eventproducer.publishOTPGeneration({otpid, userid, type});
+
+      const user = await UserModel.findById(userId);
+      if (user) {
+        await publishOTPGenerated({
+          userId,
+          email: user.email,
+          otpId,
+          type
+        });
+      }
+
 
       return {otp, otpId};
     } catch (error: any) {
@@ -167,24 +184,24 @@ export class OTPService {
   */
 
   async getOTPForEmail(otpId: string): Promise<string | null> {
-  try {
-    logger.debug('Retrieving OTP for email service', { otpId });
-    
-    // Get plain OTP from Redis (automatically deletes on retrieval)
-    const otp = await redisManager.getPlainOTP(otpId);
-    
-    if (otp) {
-      logger.info('OTP retrieved for email service', { otpId });
-    } else {
-      logger.warn('OTP not found in Redis for email service', { otpId });
+    try {
+      logger.debug('Retrieving OTP for email service', { otpId });
+      
+      // Get plain OTP from Redis (automatically deletes on retrieval)
+      const otp = await redisManager.getPlainOTP(otpId);
+      
+      if (otp) {
+        logger.info('OTP retrieved for email service', { otpId });
+      } else {
+        logger.warn('OTP not found in Redis for email service', { otpId });
+      }
+      
+      return otp;
+    } catch (error:any) {
+      logger.error('Error getting OTP for email service:', error);
+      throw new Error('OTP_RETRIEVAL_FAILED');
     }
-    
-    return otp;
-  } catch (error:any) {
-    logger.error('Error getting OTP for email service:', error);
-    throw new Error('OTP_RETRIEVAL_FAILED');
   }
-}
 
   /**
    * CHeck if OPT is expired 

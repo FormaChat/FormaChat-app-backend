@@ -17,9 +17,9 @@
     "types": ["node"],
     "typeRoots": ["./types", "./node_modules/@types"],
     "allowJs": true,
-    "checkJs": false,
+    "checkJs": false
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "src/persistence"],
   "exclude": ["node_modules", "dist"],
   "ts-node": {
     "esm": false

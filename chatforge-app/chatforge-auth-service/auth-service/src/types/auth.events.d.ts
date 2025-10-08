@@ -75,7 +75,6 @@ export interface UserDeactivatedEventData {
   userId: string;
   email: string;
   deactivatedAt: Date;
-  reason?: string;
 }
 
 /**

@@ -3,6 +3,12 @@ import { PasswordService } from './auth.password.service';
 import { AuditService } from './auth.audit.service';
 import { createLogger } from '../utils/auth.logger.utils';
 
+// producers
+import { publishUserCreated } from '../events/producers/auth.user.producer';
+import { publishPasswordChanged } from '../events/producers/auth.password.producer';
+import { publishUserDeactivated } from '../events/producers/auth.account.producer';
+
+
 const logger = createLogger('user-service');
 
 export interface CreateUserData {
@@ -107,6 +113,13 @@ export class UserService {
 
       // TODO: Publish user.created event via event producer
       // await eventProducer.publishUserCreated({ ... });
+
+      await publishUserCreated({
+        userId: user._id.toString(),
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName
+      });
 
       return user;
     } catch (error:any) {
@@ -318,6 +331,13 @@ export class UserService {
       });
 
       // TODO: Publish password.changed event
+
+      await publishPasswordChanged({
+        userId: user._id.toString(),
+        email: user.email,
+        changedAt: new Date()
+      });
+
       // TODO: Revoke all existing tokens (security measure)
 
     } catch (error:any) {
@@ -350,6 +370,13 @@ export class UserService {
       });
 
       // TODO: Publish user.deactivated event
+
+      await publishUserDeactivated({
+        userId: user._id.toString(),
+        email: user.email,
+        deactivatedAt: new Date(),
+      });
+
       // TODO: Revoke all active sessions/tokens
 
       logger.info('User account deactivated', { userId });
