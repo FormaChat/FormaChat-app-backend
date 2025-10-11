@@ -7,7 +7,6 @@ import {
   publishEmailResponse,
   createSuccessResponse,
   createFailureResponse,
-  EmailResponseEventData
 } from '../producers/email.response.producer';
 
 /**
@@ -20,6 +19,14 @@ interface RabbitMQMessage {
   data: any;
   retryCount?: number; // Track retry attempts
 }
+
+
+/**
+ * Valid email types that can be sent
+ */
+type EmailType = 'otp' | 'password_reset' | 'password_changed' | 'welcome' | 'account_deactivated';
+
+
 
 /**
  * Retriable error codes/patterns
@@ -100,14 +107,93 @@ export async function startAuthEmailConsumer(): Promise<void> {
 }
 
 /**
+ * Central retry handler for all email operations
+ * Implements hybrid retry strategy:
+ * - Retriable errors: Throw error to trigger NACK with requeue (if under retry limit)
+ * - Permanent errors: Send to DLQ immediately (don't throw)
+ * - Max retries exceeded: Send to DLQ (don't throw)
+ * 
+ * @param message - The RabbitMQ message
+ * @param emailType - Type of email for logging/tracking
+ * @param handler - The actual email sending logic
+ */
+async function handleWithRetry(
+  message: RabbitMQMessage,
+  emailType: EmailType,
+  handler: (msg: RabbitMQMessage) => Promise<void>
+): Promise<void> {
+  const retryCount = message.retryCount || 0;
+  
+  try {
+    // Execute the email sending logic
+    await handler(message);
+    // Success - consumer will ACK
+  } catch (error: any) {
+    const isRetriable = isRetriableError(error);
+    const hasExceededLimit = retryCount >= MAX_RETRY_ATTEMPTS;
+    
+    logger.error(`❌ Failed to send ${emailType}`, {
+      eventId: message.eventId,
+      email: message.data.email,
+      retryCount,
+      error: error.message,
+      errorCode: error.code,
+      isRetriable,
+      hasExceededLimit
+    });
+
+    // Publish failure status back to Auth
+    await publishEmailResponse(
+      createFailureResponse(
+        message.eventId,
+        message.data.userId,
+        message.data.email,
+        emailType,
+        error.message
+      )
+    );
+
+    // Case 1: Should retry - THROW to trigger NACK with requeue
+    if (isRetriable && !hasExceededLimit) {
+      message.retryCount = retryCount + 1;
+      logger.warn(`Retriable error for ${emailType} - will retry`, { 
+        eventId: message.eventId, 
+        retryCount: message.retryCount,
+        maxRetries: MAX_RETRY_ATTEMPTS
+      });
+      throw error; // This triggers RabbitMQ NACK with requeue
+    }
+
+    // Case 2: Permanent failure or max retries - send to DLQ and DON'T throw
+    logger.error(`Sending ${emailType} to DLQ`, {
+      eventId: message.eventId,
+      isRetriable,
+      hasExceededLimit,
+      retryCount,
+      reason: hasExceededLimit ? 'Max retries exceeded' : 'Permanent error'
+    });
+
+    await publishToDLQ(message, error.message, {
+      emailType,
+      retryCount,
+      errorCode: error.code,
+      isRetriable,
+      finalAttempt: true
+    });
+
+    // DON'T throw here - message should be ACKed since it's in DLQ
+  }
+}
+
+/**
  * Handler for user.created events
  * Sends welcome email to new users
  */
 async function handleUserCreated(message: RabbitMQMessage): Promise<void> {
-  const { eventId, data } = message;
-  const retryCount = message.retryCount || 0;
-  
-  try {
+  await handleWithRetry(message, 'welcome', async (msg) => {
+    const { eventId, data } = msg;
+    const retryCount = msg.retryCount || 0;
+    
     logger.info('Processing user.created event', {
       eventId,
       userId: data.userId,
@@ -138,29 +224,7 @@ async function handleUserCreated(message: RabbitMQMessage): Promise<void> {
       email: data.email,
       retryCount 
     });
-  } catch (error: any) {
-    logger.error('❌ Failed to send welcome email', {
-      eventId,
-      email: data.email,
-      retryCount,
-      error: error.message,
-      errorCode: error.code
-    });
-
-    // Publish failure status back to Auth
-    await publishEmailResponse(
-      createFailureResponse(
-        eventId,
-        data.userId,
-        data.email,
-        'welcome',
-        error.message
-      )
-    );
-
-    // Handle retry logic
-    await handleMessageFailure(message, error, 'welcome email');
-  }
+  });
 }
 
 /**
@@ -168,10 +232,10 @@ async function handleUserCreated(message: RabbitMQMessage): Promise<void> {
  * Sends OTP email based on type (email_verification, password_reset, 2fa)
  */
 async function handleOTPGenerated(message: RabbitMQMessage): Promise<void> {
-  const { eventId, data } = message;
-  const retryCount = message.retryCount || 0;
-  
-  try {
+  await handleWithRetry(message, 'otp', async (msg) => {
+    const { eventId, data } = msg;
+    const retryCount = msg.retryCount || 0;
+    
     logger.info('Processing otp.generated event', {
       eventId,
       userId: data.userId,
@@ -206,31 +270,7 @@ async function handleOTPGenerated(message: RabbitMQMessage): Promise<void> {
       type: data.type,
       retryCount
     });
-  } catch (error: any) {
-    logger.error('❌ Failed to send OTP email', {
-      eventId,
-      email: data.email,
-      otpId: data.otpId,
-      type: data.type,
-      retryCount,
-      error: error.message,
-      errorCode: error.code
-    });
-
-    // Publish failure status back to Auth
-    await publishEmailResponse(
-      createFailureResponse(
-        eventId,
-        data.userId,
-        data.email,
-        'otp',
-        error.message
-      )
-    );
-
-    // Handle retry logic
-    await handleMessageFailure(message, error, 'OTP email');
-  }
+  });
 }
 
 /**
@@ -238,10 +278,10 @@ async function handleOTPGenerated(message: RabbitMQMessage): Promise<void> {
  * Sends password change confirmation email
  */
 async function handlePasswordChanged(message: RabbitMQMessage): Promise<void> {
-  const { eventId, data } = message;
-  const retryCount = message.retryCount || 0;
-  
-  try {
+  await handleWithRetry(message, 'password_changed', async (msg) => {
+    const { eventId, data } = msg;
+    const retryCount = msg.retryCount || 0;
+    
     logger.info('Processing password.changed event', {
       eventId,
       userId: data.userId,
@@ -271,29 +311,7 @@ async function handlePasswordChanged(message: RabbitMQMessage): Promise<void> {
       email: data.email,
       retryCount
     });
-  } catch (error: any) {
-    logger.error('❌ Failed to send password changed email', {
-      eventId,
-      email: data.email,
-      retryCount,
-      error: error.message,
-      errorCode: error.code
-    });
-
-    // Publish failure status back to Auth
-    await publishEmailResponse(
-      createFailureResponse(
-        eventId,
-        data.userId,
-        data.email,
-        'password_changed',
-        error.message
-      )
-    );
-
-    // Handle retry logic
-    await handleMessageFailure(message, error, 'password changed email');
-  }
+  });
 }
 
 /**
@@ -301,10 +319,10 @@ async function handlePasswordChanged(message: RabbitMQMessage): Promise<void> {
  * Sends account deactivation confirmation email
  */
 async function handleUserDeactivated(message: RabbitMQMessage): Promise<void> {
-  const { eventId, data } = message;
-  const retryCount = message.retryCount || 0;
-  
-  try {
+  await handleWithRetry(message, 'account_deactivated', async (msg) => {
+    const { eventId, data } = msg;
+    const retryCount = msg.retryCount || 0;
+    
     logger.info('Processing user.deactivated event', {
       eventId,
       userId: data.userId,
@@ -335,108 +353,5 @@ async function handleUserDeactivated(message: RabbitMQMessage): Promise<void> {
       email: data.email,
       retryCount
     });
-  } catch (error: any) {
-    logger.error('❌ Failed to send account deactivated email', {
-      eventId,
-      email: data.email,
-      retryCount,
-      error: error.message,
-      errorCode: error.code
-    });
-
-    // Publish failure status back to Auth
-    await publishEmailResponse(
-      createFailureResponse(
-        eventId,
-        data.userId,
-        data.email,
-        'account_deactivated',
-        error.message
-      )
-    );
-
-    // Handle retry logic
-    await handleMessageFailure(message, error, 'account deactivated email');
-  }
-}
-
-/**
- * Central error handling logic for message failures
- * Implements hybrid retry strategy:
- * - Retriable errors: Throw error to trigger NACK with requeue (if under retry limit)
- * - Permanent errors: Send to DLQ immediately (don't throw)
- * - Max retries exceeded: Send to DLQ (don't throw)
- */
-async function handleMessageFailure(
-  message: RabbitMQMessage,
-  error: any,
-  emailType: string
-): Promise<void> {
-  const retryCount = message.retryCount || 0;
-  const isRetriable = isRetriableError(error);
-  const hasExceededLimit = hasExceededRetryLimit(message);
-
-  logger.info('Evaluating message failure strategy', {
-    eventId: message.eventId,
-    emailType,
-    retryCount,
-    maxRetries: MAX_RETRY_ATTEMPTS,
-    isRetriable,
-    hasExceededLimit,
-    errorCode: error.code,
-    errorMessage: error.message
   });
-
-  // Case 1: Retriable error AND under retry limit → Requeue for retry
-  if (isRetriable && !hasExceededLimit) {
-    logger.warn('⚠️ Retriable error detected - message will be requeued', {
-      eventId: message.eventId,
-      emailType,
-      retryCount,
-      nextRetry: retryCount + 1,
-      errorCode: error.code
-    });
-
-    // Increment retry count in the message
-    message.retryCount = retryCount + 1;
-
-    // Throw error to trigger NACK(msg, false, false) in rabbitmq.js
-    // This sends message to DLQ, but we'll configure DLX with TTL for delayed retry
-    throw error;
-  }
-
-  // Case 2: Permanent error OR max retries exceeded → Send to DLQ
-  if (!isRetriable) {
-    logger.error('🚫 Permanent error detected - sending to DLQ', {
-      eventId: message.eventId,
-      emailType,
-      errorCode: error.code,
-      errorMessage: error.message
-    });
-  } else if (hasExceededLimit) {
-    logger.error('🚫 Max retry limit exceeded - sending to DLQ', {
-      eventId: message.eventId,
-      emailType,
-      retryCount,
-      maxRetries: MAX_RETRY_ATTEMPTS
-    });
-  }
-
-  // Send to DLQ with detailed metadata
-  await publishToDLQ(
-    message,
-    isRetriable ? 'Max retries exceeded' : 'Permanent failure',
-    {
-      emailType,
-      retryCount,
-      errorCode: error.code,
-      errorMessage: error.message,
-      errorStack: error.stack,
-      isRetriable,
-      timestamp: new Date().toISOString()
-    }
-  );
-
-  // DON'T throw error here - this allows the message to be ACKed
-  // and removed from the original queue (already in DLQ)
 }

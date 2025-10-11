@@ -46,3 +46,21 @@ export const internalAuthMiddleware = (req: Request, res: Response, next: NextFu
 
   next();
 };
+
+
+export const adminAuthMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader?.startsWith('Basic ')) {
+    return res.status(401).json({ error: 'Admin authentication required' });
+  }
+
+  const credentials = Buffer.from(authHeader.slice(6), 'base64').toString();
+  const [username, password] = credentials.split(':');
+  
+  if (username !== process.env.ADMIN_USER || password !== process.env.ADMIN_PASSWORD) {
+    return res.status(401).json({ error: 'Invalid admin credentials' });
+  }
+  
+  next();
+};

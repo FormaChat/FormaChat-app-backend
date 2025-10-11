@@ -1,7 +1,6 @@
 import express from 'express';
 import { securityHeadersManager } from "./config/auth.helmet";
 import { corsManager } from './config/auth.cors';
-import { databaseManager } from './config/auth.database';
 import cors from 'cors';
 import healthRoutes from './routes/auth.health.routes';
 import registerRoutes from './routes/auth.register.routes';
@@ -25,7 +24,7 @@ app.use(cors(corsManager.getCorsConfig()));
 
 // Routes
 
-app.use('/api/vi/auth', healthRoutes);
+app.use('/api/v1/auth', healthRoutes);
 app.use('/api/v1/auth', registerRoutes);
 app.use('/api/v1/auth', loginRoutes);
 app.use('/api/v1/auth', otpRoutes);
@@ -34,9 +33,7 @@ app.use('/api/v1/auth', tokenRoutes);
 app.use('/api/v1/auth', userRoutes);
 app.use('/api/v1/auth', internalRoutes);
 
-app.get('/api/v1/auth/test', (req, res) => {
-  res.send('Auth service is working!');
-});
+
 
 
 

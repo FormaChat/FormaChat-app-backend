@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      line-height: 1.6; 
+      color: #333;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+    }
+    .container { 
+      max-width: 600px; 
+      margin: 40px auto; 
+      background: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .header { 
+      background: linear-gradient(135deg, #dc2626 0%, #f87171 100%);
+      color: white; 
+      padding: 30px; 
+      text-align: center;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 600;
+    }
+    .content { 
+      padding: 40px 30px;
+      background: #ffffff;
+    }
+    .content p {
+      margin: 0 0 20px 0;
+      font-size: 16px;
+      color: #4b5563;
+    }
+    .content ul {
+      margin: 15px 0;
+      padding-left: 20px;
+      color: #4b5563;
+    }
+    .content li {
+      margin: 8px 0;
+      font-size: 15px;
+    }
+    .reason-box { 
+      background: #fef2f2;
+      border-left: 4px solid #dc2626;
+      padding: 16px 20px;
+      border-radius: 6px;
+      margin: 25px 0;
+    }
+    .reason-box p {
+      margin: 0;
+      font-size: 14px;
+      color: #991b1b;
+    }
+    .reason-box p strong {
+      color: #7f1d1d;
+    }
+    .footer { 
+      text-align: center; 
+      padding: 20px 30px; 
+      background: #f9fafb;
+      color: #6b7280; 
+      font-size: 13px;
+      border-top: 1px solid #e5e7eb;
+    }
+    .footer p {
+      margin: 5px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Account Deactivated</h1>
+    </div>
+    
+    <div class="content">
+      <p>Your FormaChat account was deactivated on <strong>{{deactivatedAt}}</strong>.</p>
+      
+      {{#if reason}}
+      <div class="reason-box">
+        <p><strong>Reason:</strong> {{reason}}</p>
+      </div>
+      {{/if}}
+
+      <p>What this means:</p>
+      <ul>
+        <li>You can no longer access your account</li>
+        <li>All your AI support agents have been disabled</li>
+        <li>You will not be charged for any future payments</li>
+      </ul>
+
+      <p>If you believe this was a mistake or would like to reactivate your account, please contact our support team at support@formachat.com.</p>
+
+      <p style="margin-top: 30px;">We're sorry to see you go,<br>The FormaChat Team</p>
+    </div>
+    
+    <div class="footer">
+      <p>&copy; {{currentYear}} FormaChat. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>

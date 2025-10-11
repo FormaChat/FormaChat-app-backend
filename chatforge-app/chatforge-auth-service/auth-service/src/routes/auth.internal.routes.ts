@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { otpController } from '../controllers/auth.otp.controller';
 import { adminController } from '../controllers/auth.admin.controller';
 import { asyncHandler } from '../middleware/auth.errorHandler.middleware';
-import { internalAuthMiddleware } from '../middleware/auth.internalAuth.middleware';
+import { internalAuthMiddleware, adminAuthMiddleware } from '../middleware/auth.internalAuth.middleware';
 import { loggerMiddleware } from '../middleware/auth.logger.middleware';
 
 const router = Router();
@@ -23,6 +23,7 @@ router.get(
   '/internal/users/:userId',
   loggerMiddleware,
   internalAuthMiddleware,
+  
   asyncHandler(adminController.getUserDetailsInternal)
 );
 

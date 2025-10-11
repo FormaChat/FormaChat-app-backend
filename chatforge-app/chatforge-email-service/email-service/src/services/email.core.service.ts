@@ -37,7 +37,7 @@ export class EmailCoreService {
     try {
       logger.info('Sending welcome email', { email: params.email });
 
-      const subject = 'Welcome to ChatForge! 🚀';
+      const subject = 'Welcome to FormaChat!';
       const html = this.renderWelcomeTemplate(params);
       
       await sendEmail({
@@ -160,11 +160,11 @@ export class EmailCoreService {
 
   private getOTPSubject(type: string): string {
     const subjects = {
-      email_verification: 'Verify Your Email - ChatForge',
-      password_reset: 'Reset Your Password - ChatForge', 
-      '2fa': 'Your Two-Factor Authentication Code - ChatForge'
+      email_verification: 'Verify Your Email - FormaChat',
+      password_reset: 'Reset Your Password - FormaChat', 
+      '2fa': 'Your Two-Factor Authentication Code - FormaChat'
     };
-    return subjects[type as keyof typeof subjects] || 'Your Verification Code - ChatForge';
+    return subjects[type as keyof typeof subjects] || 'Your Verification Code - FormaChat';
   }
 
   private renderOTPTemplate(type: string, otp: string): string {

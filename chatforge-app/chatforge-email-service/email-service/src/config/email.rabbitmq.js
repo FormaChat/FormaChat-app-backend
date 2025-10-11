@@ -296,34 +296,40 @@ class RabbitMQConnection {
         this.queues[queueName],
         async (msg) => {
           if (!msg) return;
+          
           try {
             const message = JSON.parse(msg.content.toString());
             
-            // Track retry count in message properties
-            const retryCount = (msg.properties.headers && msg.properties.headers['x-retry-count']) || 0;
+            // Extract retry count from headers
+            const retryCount = (msg.properties.headers?.['x-retry-count']) || 0;
             message.retryCount = retryCount;
             
             await handler(message);
+            
+            // ✅ ONLY ACK ONCE - if successful
             if (!options.noAck) this.channel.ack(msg);
+            
           } catch (error) {
             logger.error('Failed to process message', { 
               queue: queueName, 
-              error: error.message || 'Unknown error',
-              retryCount: (msg.properties.headers && msg.properties.headers['x-retry-count']) || 0
+              error: error.message,
+              retryCount: (msg.properties.headers?.['x-retry-count']) || 0
             });
             
             if (!options.noAck) {
-              // NACK without requeue - message goes to DLX/DLQ
-              // The consumer's handleMessageFailure() decides whether to retry
-              this.channel.nack(msg, false, false);
+              // Let the handler's retry logic decide what to do
+              // If handler throws, we NACK with requeue for retries
+              // If handler doesn't throw, we ACK (message goes to DLQ via publishToDLQ)
+              this.channel.nack(msg, false, true); // ← REQUeUE for retries
             }
           }
         },
         { noAck: options.noAck ?? false, exclusive: options.exclusive ?? false }
       );
+      
       logger.info(`Started consuming messages from queue: ${this.queues[queueName]}`);
     } catch (error) {
-      logger.error('Failed to setup consumer', { queue: queueName, error: error.message || 'Unknown error' });
+      logger.error('Failed to setup consumer', { queue: queueName, error: error.message });
       throw error;
     }
   }

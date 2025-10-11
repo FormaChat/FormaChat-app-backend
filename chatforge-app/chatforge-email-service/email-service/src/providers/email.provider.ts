@@ -1,27 +1,61 @@
+// provider/email.provider.ts
 
+import { Resend } from 'resend';
 import { logger } from '../utils/email.logger.utils';
 
 interface EmailOptions {
   to: string;
   subject: string;
   html: string;
+  from?: string;
 }
 
-/**
- * Simple email sender - replace with actual Nodemailer/SendGrid later
- */
-export async function sendEmail(options: EmailOptions): Promise<void> {
-  // TODO: Replace with actual email sending logic
-  logger.info('📧 [EMAIL SENT]', {
-    to: options.to,
-    subject: options.subject,
-    html: options.html.substring(0, 100) + '...' // Log first 100 chars
-  });
+// Validate configuration on startup
+if (!process.env.RESEND_API_KEY) {
+  logger.warn('RESEND_API_KEY environment variable is not set');
+}
 
-  // For now, just log the email instead of actually sending
-  console.log('=== EMAIL CONTENT ===');
-  console.log('To:', options.to);
-  console.log('Subject:', options.subject);
-  console.log('HTML:', options.html);
-  console.log('=====================');
+const resend = new Resend(process.env.RESEND_API_KEY as string);
+const defaultFrom = process.env.RESEND_FROM_EMAIL || 'noreply@formachat.com';
+
+function validateEmailOptions({ to, subject, html }: EmailOptions): void {
+  if (!to?.trim() || !subject?.trim() || !html?.trim()) {
+    throw new Error('Missing required email fields: to, subject, or html');
+  }
+}
+
+export async function sendEmail({ to, subject, html, from }: EmailOptions): Promise<string> {
+  try {
+    validateEmailOptions({ to, subject, html });
+    
+    logger.info('📨 Attempting to send email via Resend', { to, subject });
+
+    const response = await resend.emails.send({
+      from: defaultFrom,
+      to,
+      subject,
+      html,
+    });
+
+    if (response.error) {
+      throw new Error(`Resend API error: ${response.error.message}`);
+    }
+
+    const emailId = response.data?.id;
+
+    logger.info('✅ Email successfully sent via Resend', {
+      to,
+      subject,
+      id: emailId,
+    });
+
+    return emailId;
+  } catch (error: any) {
+    logger.error('❌ Failed to send email via Resend', {
+      to,
+      subject,
+      error: error.message,
+    });
+    throw error;
+  }
 }

@@ -37,38 +37,11 @@ export const env = cleanEnv(process.env, {
   QUEUE_RETRY: str({ default: 'email.retry' }),
   QUEUE_DLQ: str({ default: 'email.dlq' }),
 
-  // Email Provider Configuration
-  EMAIL_PROVIDER: str({ choices: ['sendgrid', 'ses', 'mailgun', 'smtp', 'resend'], default: 'sendgrid' }),
-  EMAIL_PROVIDER_FALLBACK: str({ choices: ['sendgrid', 'ses', 'mailgun', 'smtp', 'resend', 'none'], default: 'none' }),
-  
-  // SendGrid
-  SENDGRID_API_KEY: str({ default: '' }),
-  SENDGRID_FROM_EMAIL: str({ default: 'noreply@yourdomain.com' }),
-  SENDGRID_FROM_NAME: str({ default: 'Your App Name' }),
-  
-  // AWS SES
-  AWS_SES_REGION: str({ default: 'us-east-1' }),
-  AWS_SES_ACCESS_KEY_ID: str({ default: '' }),
-  AWS_SES_SECRET_ACCESS_KEY: str({ default: '' }),
-  AWS_SES_FROM_EMAIL: str({ default: 'noreply@yourdomain.com' }),
-  
-  // Mailgun
-  MAILGUN_API_KEY: str({ default: '' }),
-  MAILGUN_DOMAIN: str({ default: '' }),
-  MAILGUN_FROM_EMAIL: str({ default: 'noreply@yourdomain.com' }),
-  
   // Resend
   RESEND_API_KEY: str({ default: '' }),
-  RESEND_FROM_EMAIL: str({ default: 'noreply@yourdomain.com' }),
+  RESEND_FROM_EMAIL: str({ default: 'noreply@formachat.com' }),
   
-  // SMTP (Generic fallback)
-  SMTP_HOST: str({ default: '' }),
-  SMTP_PORT: num({ default: 587 }),
-  SMTP_SECURE: bool({ default: false }),
-  SMTP_USER: str({ default: '' }),
-  SMTP_PASSWORD: str({ default: '' }),
-  SMTP_FROM_EMAIL: str({ default: 'noreply@yourdomain.com' }),
-
+ 
   // Email Configuration
   EMAIL_MAX_RETRIES: num({ default: 3 }),
   EMAIL_RETRY_BACKOFF_MULTIPLIER: num({ default: 2 }),
@@ -141,39 +114,8 @@ export const env = cleanEnv(process.env, {
     process.exit(1);
   }
 
-  // Email provider validation
-  const provider = env.EMAIL_PROVIDER;
-  const requiredKeys: Record<string, string[]> = {
-    sendgrid: ['SENDGRID_API_KEY'],
-    ses: ['AWS_SES_ACCESS_KEY_ID', 'AWS_SES_SECRET_ACCESS_KEY'],
-    mailgun: ['MAILGUN_API_KEY', 'MAILGUN_DOMAIN'],
-    resend: ['RESEND_API_KEY'],
-    smtp: ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASSWORD'],
-  };
-
-  if (requiredKeys[provider]) {
-    const missing = requiredKeys[provider].filter(key => !process.env[key]);
-    if (missing.length > 0) {
-      logger.warn(`⚠️  Missing configuration for ${provider}: ${missing.join(', ')}`);
-    }
-  }
-
-  // Validate email addresses
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const fromEmails = [
-    env.SENDGRID_FROM_EMAIL,
-    env.AWS_SES_FROM_EMAIL,
-    env.MAILGUN_FROM_EMAIL,
-    env.RESEND_FROM_EMAIL,
-    env.SMTP_FROM_EMAIL,
-  ].filter(email => email && email !== 'noreply@yourdomain.com');
-
-  fromEmails.forEach(email => {
-    if (!emailRegex.test(email)) {
-      logger.error(`❌ Invalid email format: ${email}`);
-      process.exit(1);
-    }
-  });
+  
+  
 
   logger.info('✅ Environment configuration validated successfully');
 })();
@@ -197,13 +139,6 @@ export const rabbitmqOptions = {
   heartbeat: env.RABBITMQ_HEARTBEAT,
 };
 
-export const emailProviderConfig = {
-  primary: env.EMAIL_PROVIDER,
-  fallback: env.EMAIL_PROVIDER_FALLBACK !== 'none' ? env.EMAIL_PROVIDER_FALLBACK : undefined,
-  timeout: env.EMAIL_TIMEOUT,
-  maxRetries: env.EMAIL_MAX_RETRIES,
-  retryBackoffMultiplier: env.EMAIL_RETRY_BACKOFF_MULTIPLIER,
-};
 
 export const queueNames = {
   auth: env.QUEUE_AUTH_EMAILS,
