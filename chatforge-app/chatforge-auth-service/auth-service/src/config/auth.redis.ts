@@ -114,13 +114,13 @@ class RedisManager {
     const otp = await this.client.get(key);
     
     if (otp) {
-      // Immediately delete after retrieval (one-time use)
-      await this.client.del(key);
       logger.debug('Plain OTP retrieved and deleted', { otpId });
     }
     
     return otp;
   }
+
+  
 
   /**
    * Store hashed OTP for verification purposes

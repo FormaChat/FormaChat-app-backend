@@ -6,6 +6,7 @@ import { registerSchema, verifyOtpSchema } from '../middleware/auth.validation.m
 import { idempotencyMiddleware } from '../middleware/auth.idempotency.middleware';
 import { loggerMiddleware } from '../middleware/auth.logger.middleware';
 
+
 const router = Router();
 
 const createRateLimiter = (windowMs: number, maxRequests: number, errorCode: string, errorMessage: string) => {
@@ -13,7 +14,7 @@ const createRateLimiter = (windowMs: number, maxRequests: number, errorCode: str
     try {
       const identifier = req.ip || req.socket.remoteAddress || 'unknown';
       const key = `${identifier}:${req.path}`;
-      const {redisManager} = require('../../config/auth.redis');
+      const {redisManager} = require('../config/auth.redis');
 
       const result = await redisManager.checkRateLimit(key, windowMs, maxRequests);
 

@@ -15,7 +15,6 @@ export const env = cleanEnv(process.env, {
   SERVICE_VERSION: str({ default: '1.0.0' }),
 
   // Internal Service Security
-  INTERNAL_API_KEY: str(), // Shared secret across all microservices
   INTERNAL_SERVICE_SECRET: str(), // Additional layer for internal service-to-service communication
 
  
@@ -95,12 +94,7 @@ export const env = cleanEnv(process.env, {
 
 // --- Custom Validations ---
 (() => {
-  // Internal API key validation
-  if (env.INTERNAL_API_KEY.length < 32) {
-    logger.error('❌ INTERNAL_API_KEY must be at least 32 characters long');
-    process.exit(1);
-  }
-
+ 
   if (env.INTERNAL_SERVICE_SECRET.length < 32) {
     logger.error('❌ INTERNAL_SERVICE_SECRET must be at least 32 characters long');
     process.exit(1);

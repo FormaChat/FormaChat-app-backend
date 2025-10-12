@@ -4,6 +4,7 @@ import { userService } from '../services/auth.user.service';
 import { AuditService } from '../services/auth.audit.service';
 import { createLogger } from '../utils/auth.logger.utils';
 import { OTPType } from '../types/auth.types';
+import { redisManager } from '../config/auth.redis';
 
 const logger = createLogger('otp-controller');
 
@@ -210,7 +211,7 @@ export class OTPController {
           error: 'OTP not found or expired'
         });
       }
-
+      
       res.json({
         success: true,
         data: { otp }
@@ -225,6 +226,8 @@ export class OTPController {
       });
     }
   }
+
+  
 }
 
 export const otpController = new OTPController();

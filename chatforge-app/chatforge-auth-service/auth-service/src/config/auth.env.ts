@@ -15,7 +15,6 @@ export const env = cleanEnv(process.env, {
   SERVICE_VERSION: str({ default: '1.0.0' }),
 
    // Internal Service Security
-  INTERNAL_API_KEY: str(), // Shared secret across all microservices
   INTERNAL_SERVICE_SECRET: str(), // Additional layer for internal service-to-service communication
 
   // Database

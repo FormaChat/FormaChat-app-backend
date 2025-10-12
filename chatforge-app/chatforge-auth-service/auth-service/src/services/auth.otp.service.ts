@@ -180,28 +180,29 @@ export class OTPService {
   }
 
   /**
-   * Get OTP by ID from Redis (for internal API)
+   * Get OTP by ID from Redis (for internal API).
   */
 
   async getOTPForEmail(otpId: string): Promise<string | null> {
     try {
-      logger.debug('Retrieving OTP for email service', { otpId });
+      logger.info('Fetching OTP for email service', { otpId });
       
-      // Get plain OTP from Redis (automatically deletes on retrieval)
-      const otp = await redisManager.getPlainOTP(otpId);
+      const plainOTP = await redisManager.getPlainOTP(otpId);
       
-      if (otp) {
-        logger.info('OTP retrieved for email service', { otpId });
-      } else {
-        logger.warn('OTP not found in Redis for email service', { otpId });
+      if (!plainOTP) {
+        logger.warn('OTP not found in Redis', { otpId });
+        return null;
       }
       
-      return otp;
-    } catch (error:any) {
-      logger.error('Error getting OTP for email service:', error);
-      throw new Error('OTP_RETRIEVAL_FAILED');
+      logger.info('OTP retrieved from Redis', { otpId });
+      return plainOTP;
+    } catch (error: any) {
+      logger.error('Error retrieving OTP for email', { otpId, error: error.message });
+      return null;
     }
   }
+
+
 
   /**
    * CHeck if OPT is expired 

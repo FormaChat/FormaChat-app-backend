@@ -173,7 +173,11 @@ class RabbitMQConnection {
     };
 
     await this.channel.assertQueue(this.queues.emailResponse, options);
-    await this.channel.bindQueue(this.queues.emailResponse, this.exchanges.auth, this.routingKeys.emailResponse);
+    await this.channel.bindQueue(
+      this.queues.emailResponse,
+      this.exchanges.auth, 
+      this.routingKeys.emailResponse
+    );
   }
 
   async handleConnectionError() {
@@ -216,7 +220,7 @@ class RabbitMQConnection {
 
     try {
       const published = this.channel.publish(
-        this.exchanges.auth,
+        this.exchanges.email,
         this.routingKeys[routingKey],
         Buffer.from(JSON.stringify(message)),
         { persistent: options.persistent ?? true, priority: options.priority ?? 0 }

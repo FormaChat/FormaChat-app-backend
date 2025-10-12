@@ -18,6 +18,8 @@ router.get(
   asyncHandler(otpController.getOTPInternal)
 );
 
+
+
 // Get user details (for admin service)
 router.get(
   '/internal/users/:userId',

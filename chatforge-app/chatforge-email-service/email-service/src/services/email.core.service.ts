@@ -37,7 +37,7 @@ export class EmailCoreService {
     try {
       logger.info('Sending welcome email', { email: params.email });
 
-      const subject = 'Welcome to FormaChat!';
+      const subject = 'Welcome to FormaChat! 🚀';
       const html = this.renderWelcomeTemplate(params);
       
       await sendEmail({

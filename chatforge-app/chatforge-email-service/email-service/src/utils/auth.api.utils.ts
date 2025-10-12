@@ -9,11 +9,11 @@ export async function getOTPFromAuth(otpId: string): Promise<string | null> {
     logger.debug('Fetching OTP from Auth service', { otpId });
 
     // TODO: Move these to environment variables
-    const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'http://localhost:4001';
+    const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'http://localhost:3000';
     const INTERNAL_SERVICE_SECRET = process.env.INTERNAL_SERVICE_SECRET || 'dev-secret';
 
     const response = await axios.get(
-      `${AUTH_SERVICE_URL}/internal/otp/${otpId}`,
+      `${AUTH_SERVICE_URL}/api/v1/auth/internal/otp/${otpId}`,
       {
         headers: {
           'x-service-token': INTERNAL_SERVICE_SECRET,
@@ -34,8 +34,12 @@ export async function getOTPFromAuth(otpId: string): Promise<string | null> {
   } catch (error: any) {
     logger.error('Failed to fetch OTP from Auth', { 
       otpId, 
-      error: error.message 
+      error: error.message,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      url: error.config?.url
     });
     return null;
   }
 }
+

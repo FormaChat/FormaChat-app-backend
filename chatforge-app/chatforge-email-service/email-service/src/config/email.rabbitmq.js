@@ -1,4 +1,3 @@
-// email.rabbitmq.js
 const amqp = require('amqplib');
 const { env, isDevelopment } = require('./email.env');
 const { logger } = require('../utils/email.logger.utils');
@@ -20,13 +19,13 @@ class RabbitMQConnection {
 
   queues = {
     // Consumer queues - receiving messages from auth services
-    authUserCreated: 'auth.user.created',
-    authOtpGenerated: 'auth.otp.generated',
-    authPasswordChanged: 'auth.password.changed',
-    authUserDeactivated: 'auth.user.deactivated',
+    authUserCreated: 'email.consumer.user.created',
+    authOtpGenerated: 'email.consumer.otp.generated',
+    authPasswordChanged: 'email.consumer.password.changed',
+    authUserDeactivated: 'email.consumer.user.deactivated',
     
     // Producer queues - sending messages to auth services
-    authEmailResponse: 'auth.email.response',
+    authEmailResponse: 'email.producer.email.response',
     
     // DLQ
     emailDlq: 'email.dlq'
@@ -126,11 +125,12 @@ class RabbitMQConnection {
       await this.channel.assertQueue(this.queues.emailDlq, { durable: true });
       await this.channel.bindQueue(this.queues.emailDlq, this.exchanges.dlx, 'failed');
 
-      // Setup consumer queues (receiving messages from other services)
-      await this.declareConsumerQueues();
+      
       
       // Setup producer queues (sending messages to other services)
       await this.declareProducerQueues();
+      await this.declareConsumerQueues();
+
 
       logger.info('RabbitMQ infrastructure setup completed');
     } catch (error) {
