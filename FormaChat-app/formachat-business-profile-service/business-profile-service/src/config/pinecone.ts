@@ -1,0 +1,1 @@
+//pinecone setup (vector bd)
