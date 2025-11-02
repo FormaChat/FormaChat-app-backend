@@ -1,0 +1,161 @@
+import dotenv from 'dotenv';
+import { cleanEnv, str, num, bool, url } from 'envalid';
+import { createLogger } from '../utils/business.logger.utils';
+
+dotenv.config();
+
+const logger = createLogger('env-config');
+
+export const env = cleanEnv(process.env, {
+  // Server
+  NODE_ENV: str({ choices: ['development', 'production', 'test'], default: 'development' }),
+  PORT: num({ default: 4000 }),
+  API_VERSION: str({ default: 'v1' }),
+  SERVICE_NAME: str({ default: 'business-profile-service' }),
+  SERVICE_VERSION: str({ default: '1.0.0' }),
+
+  // Internal Service Security
+  INTERNAL_SERVICE_SECRET: str(),
+
+  // Database
+  MONGODB_URI: str(),
+  MONGODB_DB_NAME: str({ default: 'business_profile_service' }),
+  MONGODB_POOL_SIZE: num({ default: 10 }),
+  MONGODB_CONNECTION_TIMEOUT: num({ default: 30000 }),
+
+  // Vector DB - Pinecone
+  PINECONE_API_KEY: str(),
+  PINECONE_ENVIRONMENT: str({ default: 'us-east-1' }),
+  PINECONE_INDEX: str({ default: 'business-profiles' }),
+
+  // OpenAI
+  OPENAI_API_KEY: str(),
+
+  // JWT
+  JWT_ACCESS_SECRET: str(),
+  JWT_ISSUER: str({ default: 'formachat-auth-service' }),
+
+  // External Services
+  AUTH_SERVICE_URL: url({ default: 'http://localhost:3000' }),
+  PAYMENT_SERVICE_URL: url({ default: 'http://localhost:3001' }),
+  CHAT_SERVICE_URL: url({ default: 'http://localhost:3003' }),
+
+  // File Upload (for future)
+  CLOUD_STORAGE_BUCKET: str({ default: '' }),
+  CLOUD_STORAGE_REGION: str({ default: '' }),
+
+  // Admin Security
+  ADMIN_API_KEY: str(),
+  
+
+  // CORS
+  CORS_ORIGIN: str({ default: 'http://localhost:3000' }),
+});
+
+// --- Custom Validations ---
+(() => {
+  // MongoDB URI validation
+  if (!env.MONGODB_URI.startsWith('mongodb://') && !env.MONGODB_URI.startsWith('mongodb+srv://')) {
+    logger.error('❌ MONGODB_URI must start with "mongodb://" or "mongodb+srv://"');
+    process.exit(1);
+  }
+
+  // Pinecone API Key validation
+  if (!env.PINECONE_API_KEY) {
+    logger.error('❌ PINECONE_API_KEY is required for vector database operations');
+    process.exit(1);
+  }
+
+  // OpenAI API Key validation
+  if (!env.OPENAI_API_KEY) {
+    logger.error('❌ OPENAI_API_KEY is required for embeddings');
+    process.exit(1);
+  }
+
+  // Internal service secret validation
+  if (!env.INTERNAL_SERVICE_SECRET || env.INTERNAL_SERVICE_SECRET.length < 32) {
+    logger.error('❌ INTERNAL_SERVICE_SECRET must be at least 32 characters long');
+    process.exit(1);
+  }
+
+  // Admin API key validation
+  if (!env.ADMIN_API_KEY || env.ADMIN_API_KEY.length < 16) {
+    logger.error('❌ ADMIN_API_KEY must be at least 16 characters long');
+    process.exit(1);
+  }
+
+  logger.info('✅ Business service environment configuration validated successfully');
+})();
+
+// --- Derived Configurations ---
+export const isDevelopment = env.NODE_ENV === 'development';
+export const isProduction = env.NODE_ENV === 'production';
+export const isTest = env.NODE_ENV === 'test';
+
+export const corsOrigins = env.CORS_ORIGIN.split(',').map(o => o.trim());
+
+export const mongoOptions = {
+  dbName: env.MONGODB_DB_NAME,
+  maxPoolSize: env.MONGODB_POOL_SIZE,
+  serverSelectionTimeoutMS: env.MONGODB_CONNECTION_TIMEOUT,
+  socketTimeoutMS: 45000,
+  family: 4,
+};
+
+export const pineconeOptions = {
+  apiKey: env.PINECONE_API_KEY,
+  environment: env.PINECONE_ENVIRONMENT,
+  index: env.PINECONE_INDEX,
+};
+
+export const openAIOptions = {
+  apiKey: env.OPENAI_API_KEY,
+};
+
+export const serviceUrls = {
+  auth: env.AUTH_SERVICE_URL,
+  payment: env.PAYMENT_SERVICE_URL,
+  chat: env.CHAT_SERVICE_URL,
+};
+
+export const securityConfig = {
+  internalServiceSecret: env.INTERNAL_SERVICE_SECRET,
+  adminApiKey: env.ADMIN_API_KEY,
+};
+
+// --- JWT Configuration ---
+// Note: Business service doesn't issue JWTs, but needs to validate them
+// We'll get the JWT secret from auth service or use the same secret
+// For now, we'll rely on auth service validation for user endpoints
+// and internal service secret for service-to-service communication
+
+export const jwtConfig = {
+  // We don't issue tokens, so we don't need JWT secrets here
+  // Token validation will be done by calling auth service or using shared secret
+  issuer: env.SERVICE_NAME,
+  audience: 'formachat-platform',
+};
+
+// --- Rate Limiting (for future) ---
+export const rateLimitConfig = {
+  businessCreation: {
+    windowMs: 24 * 60 * 60 * 1000, // 24 hours
+    max: 10, // Max 10 businesses per day per user (tier limits enforced separately)
+  },
+  vectorUpdates: {
+    windowMs: 60 * 1000, // 1 minute
+    max: 10, // Max 10 vector updates per minute per business
+  },
+};
+
+// --- Feature Flags ---
+export const featureFlags = {
+  enableFileUploads: Boolean(env.CLOUD_STORAGE_BUCKET),
+  enableVectorAutoUpdate: true,
+  enableAdminDashboard: true,
+};
+
+logger.info(`🚀 ${env.SERVICE_NAME} v${env.SERVICE_VERSION} environment loaded`);
+logger.info(`🌍 NODE_ENV: ${env.NODE_ENV}`);
+logger.info(`🔗 MongoDB: ${env.MONGODB_DB_NAME}`);
+logger.info(`📚 Pinecone: ${env.PINECONE_INDEX}`);
