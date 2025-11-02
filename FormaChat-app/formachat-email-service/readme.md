@@ -1,0 +1,1 @@
+the email service app is responsble for sending external , yet important messages or notoce to users outside the platform.. Away to inform them of something importannt while away from the app's dashboard (otp, payemnts, etc)
