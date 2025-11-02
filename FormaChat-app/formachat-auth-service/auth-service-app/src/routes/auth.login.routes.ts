@@ -7,6 +7,9 @@ import { jwtMiddleware } from '../middleware/auth.jwt.middleware';
 import { idempotencyMiddleware } from '../middleware/auth.idempotency.middleware';
 import { loggerMiddleware } from '../middleware/auth.logger.middleware';
 import { redisManager } from '../config/auth.redis';
+import { createLogger } from '../utils/auth.logger.utils';
+
+const logger = createLogger('auth-login-routes');
 
 const router = Router();
 
@@ -34,8 +37,8 @@ const createRateLimiter = (windowMs: number, maxRequests: number, errorCode: str
       }
 
       next();
-    } catch (error) {
-      console.error('Rate limit check failed:', error);
+    } catch (error:any) {
+      logger.error('Rate limit check failed:', error);
       next();
     }
   };

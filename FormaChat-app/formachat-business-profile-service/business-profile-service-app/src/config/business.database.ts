@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import { createLogger } from '../utils/business.logger.utils';
 import { env } from './business.env';
 
-const logger = createLogger('database');
+const logger = createLogger('business-profile-database');
 
 class DatabaseManager {
   private static instance: DatabaseManager;
@@ -26,28 +26,28 @@ class DatabaseManager {
     mongoose.connection.on('connected', () => {
       this.isConnected = true;
       this.connectionAttempts = 0;
-      logger.info('✅ MongoDB connected successfully');
+      logger.info('MongoDB connected successfully');
     });
 
     mongoose.connection.on('error', (error) => {
       this.isConnected = false;
-      logger.error('❌ MongoDB connection error:', error);
+      logger.error('MongoDB connection error:', error);
     });
 
     mongoose.connection.on('disconnected', () => {
       this.isConnected = false;
-      logger.warn('⚠️ MongoDB disconnected');
+      logger.warn('MongoDB disconnected');
     });
 
     mongoose.connection.on('reconnected', () => {
       this.isConnected = true;
-      logger.info('✅ MongoDB reconnected');
+      logger.info('MongoDB reconnected');
     });
   }
 
   public async connect(): Promise<void> {
     if (this.isConnected) {
-      logger.info('📊 MongoDB already connected');
+      logger.info('MongoDB already connected');
       return;
     }
 
@@ -64,7 +64,7 @@ class DatabaseManager {
       await mongoose.connect(env.MONGODB_URI, options);
       this.isConnected = true;
     } catch (error: any) {
-      logger.error('❌ Failed to connect to MongoDB:', error);
+      logger.error('Failed to connect to MongoDB:', error);
       await this.handleConnectionFailure();
       throw error;
     }
@@ -75,12 +75,12 @@ class DatabaseManager {
 
     if (this.connectionAttempts <= this.maxRetries) {
       const delay = this.initialRetryDelay * Math.pow(2, this.connectionAttempts - 1);
-      logger.warn(`🔄 Retrying MongoDB connection in ${delay}ms (attempt ${this.connectionAttempts}/${this.maxRetries})`);
+      logger.warn(`Retrying MongoDB connection in ${delay}ms (attempt ${this.connectionAttempts}/${this.maxRetries})`);
       
       await new Promise(resolve => setTimeout(resolve, delay));
       await this.connect();
     } else {
-      logger.error('💥 Maximum MongoDB connection retries exceeded');
+      logger.error('Maximum MongoDB connection retries exceeded');
       process.exit(1);
     }
   }
@@ -93,9 +93,9 @@ class DatabaseManager {
     try {
       await mongoose.disconnect();
       this.isConnected = false;
-      logger.info('📊 MongoDB disconnected gracefully');
+      logger.info('MongoDB disconnected gracefully');
     } catch (error:any) {
-      logger.error('❌ Error disconnecting from MongoDB:', error);
+      logger.error('Error disconnecting from MongoDB:', error);
       throw error;
     }
   }
@@ -115,7 +115,7 @@ class DatabaseManager {
         latency,
       };
     } catch (error:any) {
-      logger.error('❌ MongoDB health check failed:', error);
+      logger.error('MongoDB health check failed:', error);
       return { status: 'unhealthy' };
     }
   }
@@ -149,13 +149,13 @@ class DatabaseManager {
 
 // Graceful shutdown handling
 process.on('SIGINT', async () => {
-  logger.info('🔄 Received SIGINT, closing MongoDB connection...');
+  logger.info('Received SIGINT, closing MongoDB connection...');
   await DatabaseManager.getInstance().disconnect();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
-  logger.info('🔄 Received SIGTERM, closing MongoDB connection...');
+  logger.info('Received SIGTERM, closing MongoDB connection...');
   await DatabaseManager.getInstance().disconnect();
   process.exit(0);
 });

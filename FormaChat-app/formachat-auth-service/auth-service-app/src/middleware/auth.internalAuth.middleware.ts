@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { AuthError } from './auth.errorHandler.middleware';
 import { createLogger, getRequestId } from '../utils/auth.logger.utils';
-
+import { env } from '../config/auth.env';
 
 
 export const internalAuthMiddleware = (req: Request, res: Response, next: NextFunction) => {
@@ -19,7 +19,7 @@ export const internalAuthMiddleware = (req: Request, res: Response, next: NextFu
     throw new AuthError('Service token required', 401, 'MISSING_SERVICE_TOKEN');
   }
 
-  const expectedToken = process.env.INTERNAL_SERVICE_SECRET!;
+  const expectedToken = env.INTERNAL_SERVICE_SECRET!;
   
   // Timing-safe comparison to prevent timing attacks
   
@@ -44,23 +44,5 @@ export const internalAuthMiddleware = (req: Request, res: Response, next: NextFu
     path: req.path
   });
 
-  next();
-};
-
-
-export const adminAuthMiddleware = (req: Request, res: Response, next: NextFunction) => {
-  const authHeader = req.headers.authorization;
-  
-  if (!authHeader?.startsWith('Basic ')) {
-    return res.status(401).json({ error: 'Admin authentication required' });
-  }
-
-  const credentials = Buffer.from(authHeader.slice(6), 'base64').toString();
-  const [username, password] = credentials.split(':');
-  
-  if (username !== process.env.ADMIN_USER || password !== process.env.ADMIN_PASSWORD) {
-    return res.status(401).json({ error: 'Invalid admin credentials' });
-  }
-  
   next();
 };

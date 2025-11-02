@@ -1,7 +1,11 @@
 import OpenAI from 'openai';
-import dotenv from 'dotenv';
+import { env } from './business.env';
+import { createLogger } from '../utils/business.logger.utils';
 
-dotenv.config();
+
+
+
+const logger = createLogger('openai-config');
 
 /**
  * ========================================
@@ -12,16 +16,16 @@ dotenv.config();
  * Embeddings = Converting text into vectors (arrays of numbers)
  * 
  * Purpose: Convert business data from MongoDB into vectors for Pinecone
- */
+*/
 
 class OpenAIConfig {
   private static instance: OpenAI | null = null;
 
   private static readonly config = {
-    apiKey: process.env.OPENAI_API_KEY,
-    embeddingModel: process.env.OPENAI_EMBEDDING_MODEL || 'text-embedding-3-small',
-    maxRetries: parseInt(process.env.OPENAI_MAX_RETRIES || '3'),
-    timeout: parseInt(process.env.OPENAI_TIMEOUT || '60000'),
+    apiKey: env.OPENAI_API_KEY,
+    embeddingModel: env.OPENAI_EMBEDDING_MODEL,
+    maxRetries: parseInt(env.OPENAI_MAX_RETRIES),
+    timeout: parseInt(env.OPENAI_TIMEOUT),
   };
 
   /**
@@ -40,7 +44,7 @@ class OpenAIConfig {
         timeout: OpenAIConfig.config.timeout,
       });
 
-      console.log('[OpenAI] Client initialized');
+      logger.info('[OpenAI] Client initialized');
     }
 
     return OpenAIConfig.instance;
@@ -90,12 +94,12 @@ class OpenAIConfig {
 
       const embeddings = response.data.map(item => item.embedding);
 
-      console.log(`[OpenAI] Created ${embeddings.length} embeddings`);
+      logger.info(`[OpenAI] Created ${embeddings.length} embeddings`);
 
       return embeddings;
 
     } catch (error: any) {
-      console.error('[OpenAI] Embedding failed:', error.message);
+      logger.error('[OpenAI] Embedding failed:', error.message);
       
       if (error.status === 401) {
         throw new Error('Invalid OpenAI API key');

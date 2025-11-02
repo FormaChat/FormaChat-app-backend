@@ -1,5 +1,8 @@
 import axios from 'axios';
-import { logger } from './email.logger.utils';
+import { createLogger } from './email.logger.utils';
+import { env } from '../config/email.env';
+
+const logger = createLogger('auth-api-utils');
 
 /**
  * Fetch plain OTP from Auth service's internal API
@@ -9,8 +12,8 @@ export async function getOTPFromAuth(otpId: string): Promise<string | null> {
     logger.debug('Fetching OTP from Auth service', { otpId });
 
     // TODO: Move these to environment variables
-    const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'http://localhost:3000';
-    const INTERNAL_SERVICE_SECRET = process.env.INTERNAL_SERVICE_SECRET || 'dev-secret';
+    const AUTH_SERVICE_URL = env.AUTH_SERVICE_URL;
+    const INTERNAL_SERVICE_SECRET = env.INTERNAL_SERVICE_SECRET;
 
     const response = await axios.get(
       `${AUTH_SERVICE_URL}/api/v1/auth/internal/otp/${otpId}`,

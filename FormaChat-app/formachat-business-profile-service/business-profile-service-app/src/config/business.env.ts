@@ -9,7 +9,7 @@ const logger = createLogger('env-config');
 export const env = cleanEnv(process.env, {
   // Server
   NODE_ENV: str({ choices: ['development', 'production', 'test'], default: 'development' }),
-  PORT: num({ default: 4000 }),
+  PORT: num({ default: 4001 }),
   API_VERSION: str({ default: 'v1' }),
   SERVICE_NAME: str({ default: 'business-profile-service' }),
   SERVICE_VERSION: str({ default: '1.0.0' }),
@@ -25,20 +25,23 @@ export const env = cleanEnv(process.env, {
 
   // Vector DB - Pinecone
   PINECONE_API_KEY: str(),
-  PINECONE_ENVIRONMENT: str({ default: 'us-east-1' }),
-  PINECONE_INDEX: str({ default: 'business-profiles' }),
+  PINECONE_ENVIRONMENT: str({ default: 'us-east-1-aws' }),
+  PINECONE_INDEX_NAME: str({ default: 'formachat-messages' }),
 
   // OpenAI
   OPENAI_API_KEY: str(),
+  OPENAI_EMBEDDING_MODEL: str({default: 'text-embedding-3-small'}),
+  OPENAI_MAX_RETRIES: str({default: '3'}),
+  OPENAI_TIMEOUT: str({default: '60000'}),
 
   // JWT
   JWT_ACCESS_SECRET: str(),
   JWT_ISSUER: str({ default: 'formachat-auth-service' }),
 
   // External Services
-  AUTH_SERVICE_URL: url({ default: 'http://localhost:3000' }),
-  PAYMENT_SERVICE_URL: url({ default: 'http://localhost:3001' }),
-  CHAT_SERVICE_URL: url({ default: 'http://localhost:3003' }),
+  AUTH_SERVICE_URL: url(),
+  PAYMENT_SERVICE_URL: url(),
+  CHAT_SERVICE_URL: url(),
 
   // File Upload (for future)
   CLOUD_STORAGE_BUCKET: str({ default: '' }),
@@ -47,6 +50,11 @@ export const env = cleanEnv(process.env, {
   // Admin Security
   ADMIN_API_KEY: str(),
   
+  // CLOUDINARY
+  API_SECRET_CLOUDINARY: str(),
+  API_KEY_CLOUDINARY: str(),
+  CLOUDINARY_URL: str(),
+
 
   // CORS
   CORS_ORIGIN: str({ default: 'http://localhost:3000' }),
@@ -105,7 +113,7 @@ export const mongoOptions = {
 export const pineconeOptions = {
   apiKey: env.PINECONE_API_KEY,
   environment: env.PINECONE_ENVIRONMENT,
-  index: env.PINECONE_INDEX,
+  index: env.PINECONE_INDEX_NAME,
 };
 
 export const openAIOptions = {
@@ -158,4 +166,4 @@ export const featureFlags = {
 logger.info(`🚀 ${env.SERVICE_NAME} v${env.SERVICE_VERSION} environment loaded`);
 logger.info(`🌍 NODE_ENV: ${env.NODE_ENV}`);
 logger.info(`🔗 MongoDB: ${env.MONGODB_DB_NAME}`);
-logger.info(`📚 Pinecone: ${env.PINECONE_INDEX}`);
+logger.info(`📚 Pinecone: ${env.PINECONE_INDEX_NAME}`);

@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { businessService } from '../services/business.service';
+import { createLogger } from '../utils/business.logger.utils';
 
+const logger = createLogger('admin-controller');
 
 export const getAllBusinesses = async (
   req: Request,
@@ -31,10 +33,10 @@ export const getAllBusinesses = async (
       data: result
     });
 
-    console.log(`[Admin] ✓ Retrieved ${result.businesses.length} businesses (page ${page}) by admin: ${req.adminUser?.email}`);
+    logger.info(`[Admin] ✓ Retrieved ${result.businesses.length} businesses (page ${page}) by admin: ${req.adminUser?.email}`);
 
   } catch (error: any) {
-    console.error('[Admin] Get all businesses error:', error.message);
+    logger.error('[Admin] Get all businesses error:', error.message);
 
     res.status(500).json({
       success: false,
@@ -74,10 +76,10 @@ export const getBusinessById = async (
       data: business
     });
 
-    console.log(`[Admin] ✓ Retrieved business: ${businessId} by admin: ${req.adminUser?.email}`);
+    logger.info(`[Admin] ✓ Retrieved business: ${businessId} by admin: ${req.adminUser?.email}`);
 
   } catch (error: any) {
-    console.error('[Admin] Get business by ID error:', error.message);
+    logger.error('[Admin] Get business by ID error:', error.message);
 
     // Handle "not found" from service
     if (error.message.includes('not found')) {
@@ -187,10 +189,10 @@ export const setBusinessStatus = async (
       }
     });
 
-    console.log(`[Admin] ✓ Business ${businessId} ${isActive ? 'activated' : 'frozen'} by admin: ${req.adminUser?.email}`);
+    logger.info(`[Admin] ✓ Business ${businessId} ${isActive ? 'activated' : 'frozen'} by admin: ${req.adminUser?.email}`);
 
   } catch (error: any) {
-    console.error('[Admin] Set business status error:', error.message);
+    logger.error('[Admin] Set business status error:', error.message);
 
     // Handle "not found" from service
     if (error.message.includes('not found')) {
@@ -228,10 +230,10 @@ export const getPlatformStats = async (
       data: stats
     });
 
-    console.log(`[Admin] ✓ Platform stats retrieved by admin: ${req.adminUser?.email}`);
+    logger.info(`[Admin] ✓ Platform stats retrieved by admin: ${req.adminUser?.email}`);
 
   } catch (error: any) {
-    console.error('[Admin] Get platform stats error:', error.message);
+    logger.error('[Admin] Get platform stats error:', error.message);
 
     res.status(500).json({
       success: false,
@@ -272,10 +274,10 @@ export const getFrozenBusinesses = async (
       data: result
     });
 
-    console.log(`[Admin] ✓ Retrieved ${result.businesses.length} frozen businesses (page ${page}) by admin: ${req.adminUser?.email}`);
+    logger.info(`[Admin] ✓ Retrieved ${result.businesses.length} frozen businesses (page ${page}) by admin: ${req.adminUser?.email}`);
 
   } catch (error: any) {
-    console.error('[Admin] Get frozen businesses error:', error.message);
+    logger.error('[Admin] Get frozen businesses error:', error.message);
 
     res.status(500).json({
       success: false,
@@ -286,7 +288,6 @@ export const getFrozenBusinesses = async (
     });
   }
 };
-
 
 
 export default {

@@ -1,7 +1,10 @@
 import { Pinecone } from '@pinecone-database/pinecone';
-import dotenv from 'dotenv';
+import { createLogger } from '../utils/business.logger.utils';
+import { env } from './business.env';
 
-dotenv.config();
+
+
+const logger = createLogger('pinecone-config');
 
 /**
  * ========================================
@@ -22,9 +25,9 @@ class PineconeConfig {
   private static instance: Pinecone | null = null;
 
   private static readonly config = {
-    apiKey: process.env.PINECONE_API_KEY,
-    environment: process.env.PINECONE_ENVIRONMENT,
-    indexName: process.env.PINECONE_INDEX_NAME || 'formachat-messages',
+    apiKey: env.PINECONE_API_KEY,
+    environment: env.PINECONE_ENVIRONMENT,
+    indexName: env.PINECONE_INDEX_NAME,
   };
 
   /**
@@ -41,7 +44,7 @@ class PineconeConfig {
         apiKey: PineconeConfig.config.apiKey,
       });
 
-      console.log('[Pinecone] Client initialized');
+      logger.info('[Pinecone] Client initialized');
     }
 
     return PineconeConfig.instance;
@@ -91,10 +94,10 @@ class PineconeConfig {
       // Upsert to specific namespace (isolated per business)
       await index.namespace(namespace).upsert(vectors);
 
-      console.log(`[Pinecone] Upserted ${vectors.length} vectors to namespace: ${namespace}`);
+      logger.info(`[Pinecone] Upserted ${vectors.length} vectors to namespace: ${namespace}`);
 
     } catch (error: any) {
-      console.error('[Pinecone] Upsert failed:', error.message);
+      logger.error('[Pinecone] Upsert failed:', error.message);
       throw error;
     }
   }
@@ -120,10 +123,10 @@ class PineconeConfig {
       // Delete all vectors in this namespace
       await index.namespace(namespace).deleteAll();
 
-      console.log(`[Pinecone] Deleted all vectors in namespace: ${namespace}`);
+      logger.info(`[Pinecone] Deleted all vectors in namespace: ${namespace}`);
 
     } catch (error: any) {
-      console.error('[Pinecone] Namespace deletion failed:', error.message);
+      logger.error('[Pinecone] Namespace deletion failed:', error.message);
       throw error;
     }
   }
@@ -151,10 +154,10 @@ class PineconeConfig {
 
       await index.namespace(namespace).deleteMany(vectorIds);
 
-      console.log(`[Pinecone] Deleted ${vectorIds.length} vectors from namespace: ${namespace}`);
+      logger.info(`[Pinecone] Deleted ${vectorIds.length} vectors from namespace: ${namespace}`);
 
     } catch (error: any) {
-      console.error('[Pinecone] Vector deletion failed:', error.message);
+      logger.error('[Pinecone] Vector deletion failed:', error.message);
       throw error;
     }
   }
@@ -189,7 +192,7 @@ class PineconeConfig {
       };
 
     } catch (error: any) {
-      console.error('[Pinecone] Stats retrieval failed:', error.message);
+      logger.error('[Pinecone] Stats retrieval failed:', error.message);
       throw error;
     }
   }
@@ -223,10 +226,10 @@ class PineconeConfig {
         metadata,
       });
 
-      console.log(`[Pinecone] Updated metadata for vector: ${vectorId}`);
+      logger.info(`[Pinecone] Updated metadata for vector: ${vectorId}`);
 
     } catch (error: any) {
-      console.error('[Pinecone] Metadata update failed:', error.message);
+      logger.error('[Pinecone] Metadata update failed:', error.message);
       throw error;
     }
   }
@@ -252,7 +255,7 @@ class PineconeConfig {
       return exists || false;
 
     } catch (error: any) {
-      console.error('[Pinecone] Index check failed:', error.message);
+      logger.error('[Pinecone] Index check failed:', error.message);
       return false;
     }
   }

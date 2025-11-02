@@ -1,5 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import Business from '../models/business.model';
+import { createLogger } from '../utils/business.logger.utils';
+
+const logger = createLogger('ownership-middleware');
 
 interface AuthenticatedRequest extends Request {
   user?: {
@@ -69,13 +72,13 @@ export const ownershipMiddleware = async (
     // Controllers can use req.business to avoid re-fetching
     (req as any).business = business;
 
-    console.log(`[Ownership] ✓ User ${req.user.userId} verified as owner of business ${businessId}`);
+    logger.info(`[Ownership] ✓ User ${req.user.userId} verified as owner of business ${businessId}`);
 
     // Proceed to controller
     next();
 
   } catch (error: any) {
-    console.error('[Ownership] Middleware error:', error.message);
+    logger.error('[Ownership] Middleware error:', error.message);
     
     res.status(500).json({
       error: 'Internal server error',
@@ -163,12 +166,12 @@ export const ownershipWithActiveCheck = async (
     // Attach business to request
     (req as any).business = business;
 
-    console.log(`[Ownership] ✓ User ${req.user.userId} verified as owner of active business ${businessId}`);
+    logger.info(`[Ownership] ✓ User ${req.user.userId} verified as owner of active business ${businessId}`);
 
     next();
 
   } catch (error: any) {
-    console.error('[Ownership] Middleware error:', error.message);
+    logger.error('[Ownership] Middleware error:', error.message);
     
     res.status(500).json({
       error: 'Internal server error',
@@ -249,12 +252,12 @@ export const bulkOwnershipMiddleware = async (
     // Attach businesses to request
     (req as any).businesses = businesses;
 
-    console.log(`[Ownership] ✓ User ${req.user.userId} verified as owner of ${businesses.length} businesses`);
+    logger.info(`[Ownership] ✓ User ${req.user.userId} verified as owner of ${businesses.length} businesses`);
 
     next();
 
   } catch (error: any) {
-    console.error('[Ownership] Bulk middleware error:', error.message);
+    logger.error('[Ownership] Bulk middleware error:', error.message);
     
     res.status(500).json({
       error: 'Internal server error',

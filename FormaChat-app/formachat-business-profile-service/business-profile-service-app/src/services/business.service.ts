@@ -2,7 +2,11 @@ import { createLogger } from "../utils/business.logger.utils";
 import Business, { IBusiness } from '../models/business.model';
 import { vectorService } from './vector.service';
 
+const logger = createLogger('business-service');
+
+
 export class BusinessService {
+
   /**
    * Create a new business for user
   */
@@ -150,7 +154,7 @@ export class BusinessService {
     // Trigger vector freeze (soft freeze - keeps vectors but blocks access)
     await vectorService.freezeVectorAccess(businessId);
 
-    console.log(`[FREEZE] Business ${businessId} frozen. Reason: ${reason}, By: ${frozenBy}`);
+    logger.info(`[FREEZE] Business ${businessId} frozen. Reason: ${reason}, By: ${frozenBy}`);
 
     return frozenBusiness;
   }
@@ -182,7 +186,7 @@ export class BusinessService {
     // Resume vector access (vectors already exist, just unblock)
     await vectorService.resumeVectorAccess(businessId);
 
-    console.log(`[UNFREEZE] Business ${businessId} unfrozen. By: ${unfrozenBy}`);
+    logger.info(`[UNFREEZE] Business ${businessId} unfrozen. By: ${unfrozenBy}`);
 
     return unfrozenBusiness;
   }
@@ -305,7 +309,8 @@ export class BusinessService {
 
   /**
    * ADMIN: Get business by ID (no ownership check)
-   */
+  */
+ 
   async getBusinessById(businessId: string): Promise<IBusiness> {
     const business = await Business.findById(businessId);
     

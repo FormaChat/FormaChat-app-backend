@@ -5,6 +5,10 @@ import { validateRequest } from '../middleware/auth.validation.middleware';
 import { generateOTPSchema, verifyOtpSchema, resendOTPSchema } from '../middleware/auth.validation.middleware';
 import { loggerMiddleware } from '../middleware/auth.logger.middleware';
 import { redisManager } from '../config/auth.redis';
+import { createLogger } from '../utils/auth.logger.utils';
+
+const logger = createLogger('auth-otp-routes');
+
 
 const router = Router();
 
@@ -32,8 +36,8 @@ const createRateLimiter = (windowMs: number, maxRequests: number, errorCode: str
       }
 
       next();
-    } catch (error) {
-      console.error('Rate limit check failed:', error);
+    } catch (error:any) {
+      logger.error('Rate limit check failed:', error);
       next();
     }
   };

@@ -1,7 +1,8 @@
-// provider/email.provider.ts
-
 import { Resend } from 'resend';
-import { logger } from '../utils/email.logger.utils';
+import { createLogger } from '../utils/email.logger.utils';
+import { env } from '../config/email.env';
+
+const logger = createLogger('email-provider');
 
 interface EmailOptions {
   to: string;
@@ -11,12 +12,12 @@ interface EmailOptions {
 }
 
 // Validate configuration on startup
-if (!process.env.RESEND_API_KEY) {
+if (!env.RESEND_API_KEY) {
   logger.warn('RESEND_API_KEY environment variable is not set');
 }
 
-const resend = new Resend(process.env.RESEND_API_KEY as string);
-const defaultFrom = process.env.RESEND_FROM_EMAIL || 'noreply@formachat.com';
+const resend = new Resend(env.RESEND_API_KEY as string);
+const defaultFrom = env.RESEND_FROM_EMAIL || 'noreply@formachat.com';
 
 function validateEmailOptions({ to, subject, html }: EmailOptions): void {
   if (!to?.trim() || !subject?.trim() || !html?.trim()) {

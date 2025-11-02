@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import { cleanEnv, str, num, bool } from 'envalid';
+import { cleanEnv, str, num, bool,url } from 'envalid';
 import { createLogger } from '../utils/email.logger.utils';
 
 dotenv.config();
@@ -15,8 +15,9 @@ export const env = cleanEnv(process.env, {
   SERVICE_VERSION: str({ default: '1.0.0' }),
 
   // Internal Service Security
-  INTERNAL_SERVICE_SECRET: str(), // Additional layer for internal service-to-service communication
+  INTERNAL_SERVICE_SECRET: str(), 
 
+  AUTH_SERVICE_URL: url(),
  
  
   // RabbitMQ

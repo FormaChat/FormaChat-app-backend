@@ -1,6 +1,9 @@
 import Business, { IBusiness } from '../models/business.model';
 import { embeddingService, EmbeddingResult } from './embedding.service';
 import { upsertVectors, deleteNamespace} from '../config/pinecone';
+import { createLogger } from '../utils/business.logger.utils';
+
+const logger = createLogger('vector-service');
 
 /**
  * ========================================
@@ -61,7 +64,7 @@ export class VectorService {
   */
 
   async triggerVectorUpdate(businessId: string): Promise<void> {
-    console.log(`[Vector] Starting vector update for business: ${businessId}`);
+    logger.info(`[Vector] Starting vector update for business: ${businessId}`);
     
     let business: IBusiness | null = null;
 
@@ -74,7 +77,7 @@ export class VectorService {
       }
 
       if (business.vectorInfo.vectorStatus === 'pending') {
-        console.log(`[Vector] Update already in progress for ${businessId}, skipping...`);
+        logger.info(`[Vector] Update already in progress for ${businessId}, skipping...`);
         return;
       }
 
@@ -84,7 +87,7 @@ export class VectorService {
       await business.save();
 
       // 2. EXTRACT QUESTIONNAIRE TEXT
-      console.log(`[Vector] Extracting questionnaire text...`);
+      logger.info(`[Vector] Extracting questionnaire text...`);
       const questionnaireTexts = this.extractBusinessText(business);
       
       if (questionnaireTexts.length === 0 || questionnaireTexts.every(t => t.trim().length === 0)) {
@@ -93,12 +96,12 @@ export class VectorService {
 
       // 3. EMBED QUESTIONNAIRE DATA
       const questionnaireEmbeddings = await embeddingService.embedTexts(questionnaireTexts);
-      console.log(`[Vector] Created ${questionnaireEmbeddings.length} questionnaire embeddings`);
+      logger.info(`[Vector] Created ${questionnaireEmbeddings.length} questionnaire embeddings`);
 
       // 4. PROCESS DOCUMENTS (PRO tier)
       let documentEmbeddings: EmbeddingResult[] = [];
       if (business.files?.documents && business.files.documents.length > 0) {
-        console.log(`[Vector] Processing ${business.files.documents.length} documents...`);
+        logger.info(`[Vector] Processing ${business.files.documents.length} documents...`);
         
         try {
           const docs = business.files.documents.map(doc => ({
@@ -112,9 +115,9 @@ export class VectorService {
             result.embedding && result.embedding.length > 0
           );
 
-          console.log(`[Vector] Created ${documentEmbeddings.length} document embeddings`);
+          logger.info(`[Vector] Created ${documentEmbeddings.length} document embeddings`);
         } catch (docError: any) {
-          console.error(`[Vector] Document processing failed:`, docError.message);
+          logger.error(`[Vector] Document processing failed:`, docError.message);
           // Continue with other embeddings even if documents fail
         }
       }
@@ -122,7 +125,7 @@ export class VectorService {
       // 5. PROCESS IMAGES (PRO+ tier)
       let imageEmbeddings: EmbeddingResult[] = [];
       if (business.files?.images && business.files.images.length > 0) {
-        console.log(`[Vector] Processing ${business.files.images.length} images...`);
+        logger.info(`[Vector] Processing ${business.files.images.length} images...`);
         
         try {
           const images = business.files.images.map(img => ({
@@ -137,9 +140,9 @@ export class VectorService {
             result.embedding && result.embedding.length > 0
           );
           
-          console.log(`[Vector] Created ${imageEmbeddings.length} image embeddings`);
+          logger.info(`[Vector] Created ${imageEmbeddings.length} image embeddings`);
         } catch (imgError: any) {
-          console.error(`[Vector] Image processing failed:`, imgError.message);
+          logger.error(`[Vector] Image processing failed:`, imgError.message);
           // Continue with other embeddings even if images fail
         }
       }
@@ -152,25 +155,25 @@ export class VectorService {
         imageEmbeddings
       );
 
-      console.log(`[Vector] Prepared ${allVectors.length} total vectors for storage`);
+      logger.info(`[Vector] Prepared ${allVectors.length} total vectors for storage`);
 
       // 7. CLEAR OLD VECTORS (for updates)
       const namespace = business.vectorInfo.namespace;
-      console.log(`[Vector] Clearing old vectors in namespace: ${namespace}`);
+      logger.info(`[Vector] Clearing old vectors in namespace: ${namespace}`);
       
       try {
         await deleteNamespace(namespace);
       } catch (deleteError: any) {
         // Namespace might not exist yet (first time), that's okay
-        console.log(`[Vector] Namespace clear skipped (may not exist yet)`);
+        logger.info(`[Vector] Namespace clear skipped (may not exist yet)`);
       }
 
       // 8. STORE NEW VECTORS IN PINECONE
       if (allVectors.length > 0) {
-        console.log(`[Vector] Upserting ${allVectors.length} vectors to Pinecone...`);
+        logger.info(`[Vector] Upserting ${allVectors.length} vectors to Pinecone...`);
         await upsertVectors(namespace, allVectors);
       } else {
-        console.warn(`[Vector] No vectors to store for business: ${businessId}`);
+        logger.warn(`[Vector] No vectors to store for business: ${businessId}`);
       }
 
       // 9. UPDATE MONGODB STATUS - SUCCESS
@@ -180,10 +183,10 @@ export class VectorService {
       business.vectorInfo.needsUpdate = false;
       await business.save();
 
-      console.log(`[Vector] ✓ Vector update completed successfully for: ${businessId}`);
+      logger.info(`[Vector] ✓ Vector update completed successfully for: ${businessId}`);
 
     } catch (error: any) {
-      console.error(`[Vector] ✗ Vector update failed for ${businessId}:`, error.message);
+      logger.error(`[Vector] ✗ Vector update failed for ${businessId}:`, error.message);
 
       // UPDATE MONGODB STATUS - FAILURE
       if (business) {
@@ -217,14 +220,14 @@ export class VectorService {
   */
 
   async triggerVectorCleanup(businessId: string): Promise<void> {
-    console.log(`[Vector] Starting vector cleanup for business: ${businessId}`);
+    logger.info(`[Vector] Starting vector cleanup for business: ${businessId}`);
 
     try {
       // Fetch business to get namespace
       const business = await Business.findById(businessId);
 
       if (!business) {
-        console.warn(`[Vector] Business not found, using default namespace pattern`);
+        logger.warn(`[Vector] Business not found, using default namespace pattern`);
         // Even if business is deleted, we know the namespace pattern
         const namespace = `business_${businessId}`;
         await deleteNamespace(namespace);
@@ -233,10 +236,10 @@ export class VectorService {
         await deleteNamespace(namespace);
       }
 
-      console.log(`[Vector] ✓ Vector cleanup completed for: ${businessId}`);
+      logger.info(`[Vector] ✓ Vector cleanup completed for: ${businessId}`);
 
     } catch (error: any) {
-      console.error(`[Vector] ✗ Vector cleanup failed for ${businessId}:`, error.message);
+      logger.error(`[Vector] ✗ Vector cleanup failed for ${businessId}:`, error.message);
       // Don't throw - cleanup is best-effort
     }
   }
@@ -263,19 +266,19 @@ export class VectorService {
   */
 
   async freezeVectorAccess(businessId: string): Promise<void> {
-    console.log(`[Vector] Freezing vector access for business: ${businessId}`);
+    logger.info(`[Vector] Freezing vector access for business: ${businessId}`);
 
     try {
       // OPTION A: Do nothing (recommended)
       // Chat Service will check business.isActive in MongoDB before querying
-      console.log(`[Vector] Soft freeze - vectors preserved, access controlled via MongoDB`);
+      logger.info(`[Vector] Soft freeze - vectors preserved, access controlled via MongoDB`);
 
     
 
-      console.log(`[Vector] ✓ Vector freeze completed for: ${businessId}`);
+      logger.info(`[Vector] ✓ Vector freeze completed for: ${businessId}`);
 
     } catch (error: any) {
-      console.error(`[Vector] ✗ Vector freeze failed for ${businessId}:`, error.message);
+      logger.error(`[Vector] ✗ Vector freeze failed for ${businessId}:`, error.message);
      
     }
   }
@@ -298,18 +301,18 @@ export class VectorService {
   */
 
   async resumeVectorAccess(businessId: string): Promise<void> {
-    console.log(`[Vector] Resuming vector access for business: ${businessId}`);
+    logger.info(`[Vector] Resuming vector access for business: ${businessId}`);
 
     try {
       // OPTION A: Do nothing (recommended)
       // Vectors already exist, MongoDB isActive is now true
-      console.log(`[Vector] Vectors already available, access restored via MongoDB`);
+      logger.info(`[Vector] Vectors already available, access restored via MongoDB`);
 
 
-      console.log(`[Vector] ✓ Vector resume completed for: ${businessId}`);
+      logger.info(`[Vector] ✓ Vector resume completed for: ${businessId}`);
 
     } catch (error: any) {
-      console.error(`[Vector] ✗ Vector resume failed for ${businessId}:`, error.message);
+      logger.error(`[Vector] ✗ Vector resume failed for ${businessId}:`, error.message);
      
     }
   }

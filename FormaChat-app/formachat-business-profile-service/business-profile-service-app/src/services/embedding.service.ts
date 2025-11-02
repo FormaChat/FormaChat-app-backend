@@ -1,9 +1,11 @@
 import { createEmbeddings } from '../config/openai';
 import axios from 'axios';
-import pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
 import Tesseract from 'tesseract.js';
 import { fileTypeFromBuffer } from 'file-type';
+import { createLogger } from '../utils/business.logger.utils';
+
+const logger = createLogger('embedding-service');
 
 /**
  * ========================================
@@ -18,7 +20,7 @@ import { fileTypeFromBuffer } from 'file-type';
  * Cost Optimization:
  * - Uses FREE local parsers (pdf-parse, mammoth, tesseract)
  * - Only pays for OpenAI embedding API calls (not parsing)
- */
+*/
 
 export interface EmbeddingResult {
   embedding: number[];      // The vector (1536 numbers)
@@ -43,7 +45,8 @@ export class EmbeddingService {
    * 
    * @param texts - Array of text strings to embed
    * @returns Array of embeddings with metadata
-   */
+  */
+
   async embedTexts(texts: string[]): Promise<EmbeddingResult[]> {
     try {
       if (texts.length === 0) {
@@ -68,12 +71,12 @@ export class EmbeddingService {
         sourceType: 'text',
       }));
 
-      console.log(`[Embedding] Created ${results.length} text embeddings`);
+      logger.info(`[Embedding] Created ${results.length} text embeddings`);
 
       return results;
 
     } catch (error: any) {
-      console.error('[Embedding] Text embedding failed:', error.message);
+      logger.error('[Embedding] Text embedding failed:', error.message);
       throw error;
     }
   }
@@ -92,10 +95,11 @@ export class EmbeddingService {
    * @param fileUrl - URL to document (S3, Cloudinary, etc.)
    * @param fileName - Original filename (for type detection)
    * @returns Array of embeddings from document chunks
-   */
+  */
+
   async embedDocument(fileUrl: string, fileName: string): Promise<EmbeddingResult[]> {
     try {
-      console.log(`[Embedding] Processing document: ${fileName}`);
+      logger.info(`[Embedding] Processing document: ${fileName}`);
 
       // 1. Download file
       const fileBuffer = await this.downloadFile(fileUrl);
@@ -115,7 +119,7 @@ export class EmbeddingService {
       // 3. Chunk the text
       const chunks = this.chunkText(extractedText);
 
-      console.log(`[Embedding] Extracted ${extractedText.length} chars, created ${chunks.length} chunks`);
+      logger.info(`[Embedding] Extracted ${extractedText.length} chars, created ${chunks.length} chunks`);
 
       // 4. Create embeddings
       const embeddings = await createEmbeddings(chunks);
@@ -133,12 +137,12 @@ export class EmbeddingService {
         }
       }));
 
-      console.log(`[Embedding] Created ${results.length} document embeddings for: ${fileName}`);
+      logger.info(`[Embedding] Created ${results.length} document embeddings for: ${fileName}`);
 
       return results;
 
     } catch (error: any) {
-      console.error(`[Embedding] Document embedding failed for ${fileName}:`, error.message);
+      logger.error(`[Embedding] Document embedding failed for ${fileName}:`, error.message);
       throw error;
     }
   }
@@ -159,10 +163,11 @@ export class EmbeddingService {
    * @param imageUrl - URL to image
    * @param fileName - Original filename
    * @returns Embedding result with OCR text
-   */
+  */
+
   async embedImage(imageUrl: string, fileName: string): Promise<EmbeddingResult> {
     try {
-      console.log(`[Embedding] Processing image: ${fileName}`);
+      logger.info(`[Embedding] Processing image: ${fileName}`);
 
       // 1. Download image
       const imageBuffer = await this.downloadFile(imageUrl);
@@ -172,7 +177,7 @@ export class EmbeddingService {
 
       // Handle empty OCR results
       if (!extractedText || extractedText.trim().length === 0) {
-        console.warn(`[Embedding] No text found in image: ${fileName}`);
+        logger.warn(`[Embedding] No text found in image: ${fileName}`);
         // Return a placeholder embedding or skip
         return {
           embedding: [],
@@ -202,12 +207,12 @@ export class EmbeddingService {
         }
       };
 
-      console.log(`[Embedding] Created image embedding for: ${fileName} (${extractedText.length} chars extracted)`);
+      logger.info(`[Embedding] Created image embedding for: ${fileName} (${extractedText.length} chars extracted)`);
 
       return result;
 
     } catch (error: any) {
-      console.error(`[Embedding] Image embedding failed for ${fileName}:`, error.message);
+      logger.error(`[Embedding] Image embedding failed for ${fileName}:`, error.message);
       throw error;
     }
   }
@@ -241,7 +246,7 @@ export class EmbeddingService {
   /**
    * Parse PDF to extract text
    * Uses pdf-parse (FREE, local processing)
-   */
+  */
   
   private async parsePDF(buffer: Buffer): Promise<string> {
     const pdfParse = require('pdf-parse');
@@ -250,7 +255,7 @@ export class EmbeddingService {
       return data.text;
 
     } catch (error: any) {
-      console.error('[Embedding] PDF parsing failed:', error.message);
+      logger.error('[Embedding] PDF parsing failed:', error.message);
       throw new Error('Failed to parse PDF document');
     }
   }
@@ -258,14 +263,15 @@ export class EmbeddingService {
   /**
    * Parse DOCX to extract text
    * Uses mammoth (FREE, local processing)
-   */
+  */
+
   private async parseDOCX(buffer: Buffer): Promise<string> {
     try {
       const result = await mammoth.extractRawText({ buffer });
       return result.value;
 
     } catch (error: any) {
-      console.error('[Embedding] DOCX parsing failed:', error.message);
+      logger.error('[Embedding] DOCX parsing failed:', error.message);
       throw new Error('Failed to parse DOCX document');
     }
   }
@@ -273,7 +279,8 @@ export class EmbeddingService {
   /**
    * Extract text from image using OCR
    * Uses Tesseract.js (FREE, local processing)
-   */
+  */
+
   private async extractTextFromImage(buffer: Buffer): Promise<string> {
     try {
       const worker = await Tesseract.createWorker('eng');
@@ -285,7 +292,7 @@ export class EmbeddingService {
       return data.text;
 
     } catch (error: any) {
-      console.error('[Embedding] OCR failed:', error.message);
+      logger.error('[Embedding] OCR failed:', error.message);
       throw new Error('Failed to extract text from image');
     }
   }
@@ -296,7 +303,8 @@ export class EmbeddingService {
    * 
    * @param text - Full text to chunk
    * @returns Array of text chunks
-   */
+  */
+
   private chunkText(text: string): string[] {
     const chunks: string[] = [];
     
@@ -332,7 +340,8 @@ export class EmbeddingService {
    * 
    * Process multiple documents/images in parallel (with limit)
    * Prevents overwhelming the system
-   */
+  */
+
   async embedMultipleDocuments(
     documents: Array<{ fileUrl: string; fileName: string }>
   ): Promise<EmbeddingResult[]> {

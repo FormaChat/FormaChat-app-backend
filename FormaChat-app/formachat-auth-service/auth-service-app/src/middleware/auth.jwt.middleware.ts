@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { AuthError } from './auth.errorHandler.middleware';
 import { createLogger, getRequestId } from '../utils/auth.logger.utils';
+import { env } from '../config/auth.env';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -27,7 +28,7 @@ export const jwtMiddleware = (req: AuthRequest, res: Response, next: NextFunctio
   const token = authHeader.substring(7);
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
+    const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET!) as {
       userId: string;
       email: string;
     };
@@ -66,7 +67,7 @@ export const optionalJwtMiddleware = (req: AuthRequest, res: Response, next: Nex
     const token = authHeader.substring(7);
     
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
+      const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET!) as {
         userId: string;
         email: string;
       };

@@ -28,13 +28,18 @@ export class TokenController {
         userAgent
       });
 
+      
+
       res.json({
         success: true,
         data: {
           accessToken: result.accessToken,
           refreshToken: result.newRefreshToken || refreshToken
         }
+        
       });
+
+      
 
     } catch (error: any) {
       logger.error('Token refresh error:', error);

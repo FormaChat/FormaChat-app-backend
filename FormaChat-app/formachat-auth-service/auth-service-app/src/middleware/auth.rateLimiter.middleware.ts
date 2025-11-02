@@ -1,5 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { redisManager } from '../config/auth.redis';
+import { createLogger } from '../utils/auth.logger.utils';
+
+const logger = createLogger('auth-rate-limiter-middleware');
 
 const createRateLimiter = (windowMs: number, maxRequests: number, errorCode: string, errorMessage: string) => {
   return async (req: Request, res: Response, next: NextFunction) => {
@@ -26,9 +29,9 @@ const createRateLimiter = (windowMs: number, maxRequests: number, errorCode: str
       }
 
       next();
-    } catch (error) {
+    } catch (error:any) {
       // If Redis fails, allow the request but log the error
-      console.error('Rate limit check failed:', error);
+      logger.error('Rate limit check failed:', error);
       next();
     }
   };

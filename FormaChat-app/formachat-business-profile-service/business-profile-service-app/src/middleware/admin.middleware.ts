@@ -1,10 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
-import dotenv from 'dotenv';
+import { env } from '../config/business.env';
+import { createLogger } from '../utils/business.logger.utils';
 
-dotenv.config();
-
+const logger = createLogger('admin-middleware');
 
 interface AdminJWTPayload {
   userId: string;
@@ -24,7 +24,7 @@ export const adminMiddleware = async (
     const adminApiKey = req.headers['x-admin-api-key'] as string;
 
     if (!authHeader || !serviceToken || !adminApiKey) {
-      console.warn('[Admin] Missing authentication headers', {
+      logger.warn('[Admin] Missing authentication headers', {
         path: req.path,
         ip: req.ip,
         hasAuth: !!authHeader,
@@ -42,10 +42,10 @@ export const adminMiddleware = async (
 
     // 2. VERIFY JWT TOKEN (Admin User Authentication)
     const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : authHeader;
-    const jwtSecret = process.env.JWT_ACCESS_SECRET;
+    const jwtSecret = env.JWT_ACCESS_SECRET;
 
     if (!jwtSecret) {
-      console.error('[Admin] JWT_SECRET not configured');
+      logger.error('[Admin] JWT_SECRET not configured');
       res.status(500).json({
         error: 'Server configuration error',
         message: 'Authentication service not configured'
@@ -57,7 +57,7 @@ export const adminMiddleware = async (
     try {
       decoded = jwt.verify(token, jwtSecret) as AdminJWTPayload;
     } catch (error: any) {
-      console.warn('[Admin] Invalid JWT token', {
+      logger.warn('[Admin] Invalid JWT token', {
         path: req.path,
         error: error.message
       });
@@ -72,7 +72,7 @@ export const adminMiddleware = async (
 
     // Check admin role in JWT
     if (decoded.role !== 'admin') {
-      console.warn('[Admin] Non-admin user attempted admin access', {
+      logger.warn('[Admin] Non-admin user attempted admin access', {
         userId: decoded.userId,
         email: decoded.email,
         role: decoded.role
@@ -87,10 +87,10 @@ export const adminMiddleware = async (
     }
 
     // 3. VERIFY INTERNAL SERVICE SECRET (Service-to-Service Auth)
-    const expectedServiceSecret = process.env.INTERNAL_SERVICE_SECRET;
+    const expectedServiceSecret = env.INTERNAL_SERVICE_SECRET;
 
     if (!expectedServiceSecret) {
-      console.error('[Admin] INTERNAL_SERVICE_SECRET not configured');
+      logger.error('[Admin] INTERNAL_SERVICE_SECRET not configured');
       res.status(500).json({
         error: 'Server configuration error',
         message: 'Service authentication not configured'
@@ -107,7 +107,7 @@ export const adminMiddleware = async (
         throw new Error('Service token mismatch');
       }
     } catch (error: any) {
-      console.error('[Admin] Invalid service token', {
+      logger.error('[Admin] Invalid service token', {
         path: req.path,
         ip: req.ip
       });
@@ -121,10 +121,10 @@ export const adminMiddleware = async (
     }
 
     // 4. VERIFY ADMIN API KEY (Admin Microservice Identifier)
-    const expectedAdminKey = process.env.ADMIN_API_KEY;
+    const expectedAdminKey = env.ADMIN_API_KEY;
 
     if (!expectedAdminKey) {
-      console.error('[Admin] ADMIN_API_KEY not configured');
+      logger.error('[Admin] ADMIN_API_KEY not configured');
       res.status(500).json({
         error: 'Server configuration error',
         message: 'Admin service not configured'
@@ -141,7 +141,7 @@ export const adminMiddleware = async (
         throw new Error('Admin API key mismatch');
       }
     } catch (error: any) {
-      console.error('[Admin] Invalid admin API key', {
+      logger.error('[Admin] Invalid admin API key', {
         path: req.path,
         ip: req.ip
       });
@@ -161,7 +161,7 @@ export const adminMiddleware = async (
       role: decoded.role
     };
 
-    console.log('[Admin] ✓ Admin microservice authenticated', {
+    logger.info('[Admin] ✓ Admin microservice authenticated', {
       adminUser: decoded.email,
       path: req.path,
       method: req.method
@@ -170,7 +170,7 @@ export const adminMiddleware = async (
     next();
 
   } catch (error: any) {
-    console.error('[Admin] Middleware error:', error.message);
+    logger.error('[Admin] Middleware error:', error.message);
 
     res.status(500).json({
       error: 'Internal server error',

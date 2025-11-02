@@ -1,9 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import dotenv from 'dotenv';
+import { env } from '../config/business.env';
+import { createLogger } from '../utils/business.logger.utils';
 
-dotenv.config();
-
+const logger = createLogger('auth-middleware');
 
 interface JWTPayload {
   userId: string;
@@ -64,10 +64,10 @@ export const authMiddleware = async (
     }
 
     // 4. VERIFY JWT_SECRET EXISTS
-    const jwtSecret = process.env.JWT_ACCESS_SECRET;
+    const jwtSecret = env.JWT_ACCESS_SECRET;
 
     if (!jwtSecret) {
-      console.error('[Auth] JWT_SECRET not configured in environment variables');
+      logger.error('[Auth] JWT_SECRET not configured in environment variables');
       res.status(500).json({
         error: 'Server configuration error',
         message: 'Authentication service is not properly configured'
@@ -78,8 +78,11 @@ export const authMiddleware = async (
     // 5. VERIFY AND DECODE TOKEN
     let decoded: JWTPayload;
 
+    
+
     try {
       decoded = jwt.verify(token, jwtSecret) as JWTPayload;
+      
     } catch (error: any) {
       // Handle specific JWT errors
       if (error.name === 'TokenExpiredError') {
@@ -136,13 +139,13 @@ export const authMiddleware = async (
       role: decoded.role || 'user', // Default to 'user' if role not specified
     };
 
-    console.log(`[Auth] ✓ User authenticated: ${req.user.userId} (${req.user.email})`);
+    logger.info(`[Auth] ✓ User authenticated: ${req.user.userId} (${req.user.email})`);
 
     // 8. PROCEED TO NEXT MIDDLEWARE/CONTROLLER
     next();
 
   } catch (error: any) {
-    console.error('[Auth] Middleware error:', error.message);
+    logger.error('[Auth] Middleware error:', error.message);
 
     res.status(500).json({
       error: 'Internal server error',
@@ -161,17 +164,17 @@ export const optionalAuthMiddleware = async (
 
     // No auth header? That's okay, just continue without user data
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.log('[Auth] No authentication provided - proceeding as anonymous');
+      logger.info('[Auth] No authentication provided - proceeding as anonymous');
       next();
       return;
     }
 
     const token = authHeader.substring(7);
-    const jwtSecret = process.env.JWT_ACCESS_SECRET;
+    const jwtSecret = env.JWT_ACCESS_SECRET;
 
     if (!jwtSecret) {
       // Even if JWT_SECRET missing, continue without auth
-      console.warn('[Auth] JWT_SECRET not configured - proceeding as anonymous');
+      logger.warn('[Auth] JWT_SECRET not configured - proceeding as anonymous');
       next();
       return;
     }
@@ -185,18 +188,18 @@ export const optionalAuthMiddleware = async (
           email: decoded.email,
           role: decoded.role || 'user',
         };
-        console.log(`[Auth] ✓ Optional auth - user identified: ${req.user.userId}`);
+        logger.info(`[Auth] ✓ Optional auth - user identified: ${req.user.userId}`);
       }
     } catch (error: any) {
       // Token invalid? That's okay for optional auth
-      console.log('[Auth] Optional auth - invalid token, proceeding as anonymous');
+      logger.warn('[Auth] Optional auth - invalid token, proceeding as anonymous');
     }
 
     // Always proceed, regardless of auth success
     next();
 
   } catch (error: any) {
-    console.error('[Auth] Optional middleware error:', error.message);
+    logger.error('[Auth] Optional middleware error:', error.message);
     // Don't fail request even on error
     next();
   }
@@ -204,10 +207,10 @@ export const optionalAuthMiddleware = async (
 
 export const verifyToken = (token: string): JWTPayload | null => {
   try {
-    const jwtSecret = process.env.JWT_ACCESS_SECRET;
+    const jwtSecret = env.JWT_ACCESS_SECRET;
 
     if (!jwtSecret) {
-      console.error('[Auth] JWT_SECRET not configured');
+      logger.error('[Auth] JWT_SECRET not configured');
       return null;
     }
 
@@ -220,7 +223,7 @@ export const verifyToken = (token: string): JWTPayload | null => {
     return decoded;
 
   } catch (error: any) {
-    console.error('[Auth] Token verification failed:', error.message);
+    logger.error('[Auth] Token verification failed:', error.message);
     return null;
   }
 };

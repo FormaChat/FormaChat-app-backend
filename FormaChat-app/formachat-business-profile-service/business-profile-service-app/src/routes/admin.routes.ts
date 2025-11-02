@@ -2,7 +2,6 @@ import { Router } from 'express';
 import { adminMiddleware } from '../middleware/admin.middleware';
 import * as adminBusinessController from '../controllers/admin.controllers';
 
-
 /**
  * Routes Overview:
  * - GET    /admin/businesses              → List all businesses (paginated)
@@ -51,7 +50,8 @@ router.get(
  * PATCH /admin/businesses/507f1f77bcf86cd799439011/status
  * Body: { isActive: false, reason: "payment_failed", adminNote: "..." }
  * 
- */
+*/
+
 router.patch(
   '/businesses/:id/status',
   adminMiddleware,

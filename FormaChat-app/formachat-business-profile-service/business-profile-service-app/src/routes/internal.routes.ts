@@ -30,7 +30,7 @@ import * as internalBusinessController from '../controllers/internal.controllers
  * - GET /internal/businesses/:id/payment-status → Payment service queries
  * - GET /internal/businesses/:id/tier-info → Tier service queries
  * - GET /internal/businesses/:id/features → Feature flags based on tier
- */
+*/
 
 const router = Router();
 
@@ -38,7 +38,7 @@ const router = Router();
  * ========================================
  * ROUTE DEFINITIONS
  * ========================================
- */
+*/
 
 /**
  * GET /internal/businesses/:id/chat-config
@@ -115,7 +115,8 @@ const router = Router();
  *     message: "Business not found"
  *   }
  * }
- */
+*/
+
 router.get(
   '/businesses/:id/chat-config',
   internalMiddleware,
@@ -129,7 +130,7 @@ router.get(
  * 
  * These routes will be implemented when payment and tier services are built.
  * Documented here for architectural planning.
- */
+*/
 
 /**
  * GET /internal/businesses/:id/payment-status
@@ -146,7 +147,8 @@ router.get(
  *   internalMiddleware,
  *   internalBusinessController.getBusinessPaymentStatus
  * );
- */
+*/
+
 
 /**
  * GET /internal/businesses/:id/tier-info
@@ -163,7 +165,7 @@ router.get(
  *   internalMiddleware,
  *   internalBusinessController.getBusinessTierInfo
  * );
- */
+*/
 
 /**
  * GET /internal/businesses/:id/features
@@ -180,7 +182,7 @@ router.get(
  *   internalMiddleware,
  *   internalBusinessController.getBusinessFeatures
  * );
- */
+*/
 
 /**
  * POST /internal/businesses/:id/usage-log
@@ -197,7 +199,7 @@ router.get(
  *   internalMiddleware,
  *   internalBusinessController.logBusinessUsage
  * );
- */
+*/
 
 /**
  * ========================================
@@ -218,7 +220,7 @@ router.get(
  * - GET /internal/businesses/:id/tier-info
  * - GET /internal/businesses/:id/features
  * - POST /internal/businesses/:id/usage-log
- */
+*/
 
 /**
  * ========================================
@@ -298,7 +300,7 @@ router.get(
  *   // Process chat message with Pinecone and GPT
  *   // ...
  * });
- */
+*/
 
 /**
  * ========================================
@@ -327,7 +329,7 @@ router.get(
  * 
  * 5. Environment Variables Required:
  *    - INTERNAL_SERVICE_SECRET (shared across internal services)
- */
+*/
 
 /**
  * ========================================
@@ -357,7 +359,7 @@ router.get(
  *    - Manages vector lifecycle (create/update/delete)
  *    - Does NOT handle vector retrieval for chat
  * 
- * This Design Pattern is CORRECT for microservices architecture! ✅
- */
+ * This Design Pattern is CORRECT for microservices architecture! 
+*/
 
 export default router;

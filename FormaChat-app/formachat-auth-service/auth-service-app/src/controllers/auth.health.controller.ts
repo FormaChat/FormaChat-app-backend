@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { databaseManager } from '../config/auth.database';
 import { redisManager } from '../config/auth.redis';
+import { env } from '../config/auth.env';
 import { rabbitmq } from '../config/auth.rabbitmq';
 import { createLogger } from '../utils/auth.logger.utils';
 
@@ -16,7 +17,7 @@ export class HealthController {
         status: 'healthy',
         timestamp: new Date().toISOString(),
         service: 'auth-service',
-        version: process.env.npm_package_version || '1.0.0',
+        version: env.SERVICE_VERSION,
         uptime: process.uptime(),
         memory: process.memoryUsage(),
       };
@@ -52,7 +53,7 @@ export class HealthController {
         status: 'healthy',
         timestamp: new Date().toISOString(),
         service: 'auth-service',
-        version: process.env.npm_package_version || '1.0.0',
+        version: env.SERVICE_VERSION,
         uptime: process.uptime(),
         dependencies: {
           database: dbHealth,
@@ -60,7 +61,7 @@ export class HealthController {
           rabbitmq: rabbitHealth
         },
         memory: process.memoryUsage(),
-        environment: process.env.NODE_ENV
+        environment: env.NODE_ENV
       };
 
       // Determine overall status

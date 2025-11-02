@@ -1,8 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
-import dotenv from 'dotenv';
+import { env } from '../config/business.env';
+import { createLogger } from '../utils/business.logger.utils';
 
-dotenv.config();
+const logger = createLogger('internal-middleware');
 
 export const internalMiddleware = async (
   req: Request,
@@ -14,7 +15,7 @@ export const internalMiddleware = async (
     const serviceToken = req.headers['x-service-token'] as string;
 
     if (!serviceToken) {
-      console.warn('[Internal] Missing service token', {
+      logger.warn('[Internal] Missing service token', {
         path: req.path,
         ip: req.ip,
         method: req.method
@@ -31,10 +32,10 @@ export const internalMiddleware = async (
     }
 
     // 2. VERIFY INTERNAL SERVICE SECRET EXISTS IN ENV
-    const expectedServiceSecret = process.env.INTERNAL_SERVICE_SECRET;
+    const expectedServiceSecret = env.INTERNAL_SERVICE_SECRET;
 
     if (!expectedServiceSecret) {
-      console.error('[Internal] INTERNAL_SERVICE_SECRET not configured in environment');
+      logger.error('[Internal] INTERNAL_SERVICE_SECRET not configured in environment');
       
       res.status(500).json({
         success: false,
@@ -63,7 +64,7 @@ export const internalMiddleware = async (
       }
 
     } catch (error: any) {
-      console.error('[Internal] Invalid service token', {
+      logger.error('[Internal] Invalid service token', {
         path: req.path,
         ip: req.ip,
         method: req.method,
@@ -81,7 +82,7 @@ export const internalMiddleware = async (
     }
 
     // 4. AUTHENTICATION SUCCESSFUL
-    console.log('[Internal] ✓ Service authenticated', {
+    logger.info('[Internal] ✓ Service authenticated', {
       path: req.path,
       method: req.method,
       timestamp: new Date().toISOString()
@@ -97,7 +98,7 @@ export const internalMiddleware = async (
     next();
 
   } catch (error: any) {
-    console.error('[Internal] Middleware error:', error.message);
+    logger.error('[Internal] Middleware error:', error.message);
 
     res.status(500).json({
       success: false,

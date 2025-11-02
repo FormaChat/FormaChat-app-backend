@@ -1,5 +1,9 @@
 import { Request, Response } from 'express';
 import { businessService } from '../services/business.service';
+import { createLogger } from '../utils/business.logger.utils';
+
+
+const logger = createLogger('business-controller');
 
 /**
  * ========================================
@@ -24,9 +28,6 @@ import { businessService } from '../services/business.service';
  * - PUT /businesses/:id → updateBusiness
  * - DELETE /businesses/:id → deleteBusiness
 */
-
-
-
 
 /**
  * ========================================
@@ -89,10 +90,10 @@ export const createBusiness = async (
       data: business
     });
 
-    console.log(`[Business] ✓ Business created: ${business._id} by user: ${userId}`);
+    logger.info(`[Business] ✓ Business created: ${business._id} by user: ${userId}`);
 
   } catch (error: any) {
-    console.error('[Business] Create business error:', error.message);
+    logger.error('[Business] Create business error:', error.message);
 
     res.status(400).json({
       success: false,
@@ -163,10 +164,10 @@ export const getUserBusinesses = async (
       data: result
     });
 
-    console.log(`[Business] ✓ Retrieved ${result.businesses.length} businesses for user: ${userId}`);
+    logger.info(`[Business] ✓ Retrieved ${result.businesses.length} businesses for user: ${userId}`);
 
   } catch (error: any) {
-    console.error('[Business] Get user businesses error:', error.message);
+    logger.error('[Business] Get user businesses error:', error.message);
 
     res.status(500).json({
       success: false,
@@ -233,10 +234,10 @@ export const getBusinessDetails = async (
       data: business
     });
 
-    console.log(`[Business] ✓ Retrieved business details: ${businessId} for user: ${userId}`);
+    logger.info(`[Business] ✓ Retrieved business details: ${businessId} for user: ${userId}`);
 
   } catch (error: any) {
-    console.error('[Business] Get business details error:', error.message);
+    logger.error('[Business] Get business details error:', error.message);
 
     // Handle "not found or access denied" from service
     if (error.message.includes('not found') || error.message.includes('access denied')) {
@@ -332,10 +333,10 @@ export const updateBusiness = async (
       data: business
     });
 
-    console.log(`[Business] ✓ Business updated: ${businessId} by user: ${userId}`);
+    logger.info(`[Business] ✓ Business updated: ${businessId} by user: ${userId}`);
 
   } catch (error: any) {
-    console.error('[Business] Update business error:', error.message);
+    logger.error('[Business] Update business error:', error.message);
 
     // Handle "not found or access denied" from service
     if (error.message.includes('not found') || error.message.includes('access denied')) {
@@ -411,10 +412,10 @@ export const deleteBusiness = async (
       }
     });
 
-    console.log(`[Business] ✓ Business deleted: ${businessId} by user: ${userId}`);
+    logger.info(`[Business] ✓ Business deleted: ${businessId} by user: ${userId}`);
 
   } catch (error: any) {
-    console.error('[Business] Delete business error:', error.message);
+    logger.error('[Business] Delete business error:', error.message);
 
     // Handle "not found or access denied" from service
     if (error.message.includes('not found') || error.message.includes('access denied')) {

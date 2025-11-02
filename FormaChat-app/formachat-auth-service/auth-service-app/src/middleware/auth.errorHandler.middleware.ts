@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { createLogger, getRequestId } from "../utils/auth.logger.utils";
+import { env } from "../config/auth.env";
 
 export class AuthError extends Error {
   constructor(
@@ -167,12 +168,12 @@ export const errorHandlerMiddleware = (
   };
 
   // Include details only in development or for client errors
-  if (errorDetails && (process.env.NODE_ENV === 'development' || statusCode < 500)) {
+  if (errorDetails && (env.NODE_ENV === 'development' || statusCode < 500)) {
     errorResponse.error.details = errorDetails;
   }
 
   // Include stack trace only in development for server errors
-  if (process.env.NODE_ENV === 'development' && statusCode >= 500) {
+  if (env.NODE_ENV === 'development' && statusCode >= 500) {
     errorResponse.error.stack = error.stack;
   }
 

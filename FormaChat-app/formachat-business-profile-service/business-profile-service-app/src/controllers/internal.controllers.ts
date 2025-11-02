@@ -1,5 +1,8 @@
 import { Request, Response } from 'express';
 import { businessService } from '../services/business.service';
+import { createLogger } from '../utils/business.logger.utils';
+
+const logger = createLogger('internal-controller');
 
 /**
  * ========================================
@@ -174,10 +177,10 @@ export const getBusinessChatConfig = async (
       data: chatConfig
     });
 
-    console.log(`[Internal] ✓ Chat config provided for business: ${businessId}`);
+    logger.info(`[Internal] ✓ Chat config provided for business: ${businessId}`);
 
   } catch (error: any) {
-    console.error('[Internal] Error getting chat config:', error.message);
+    logger.error('[Internal] Error getting chat config:', error.message);
 
     res.status(500).json({
       success: false,
