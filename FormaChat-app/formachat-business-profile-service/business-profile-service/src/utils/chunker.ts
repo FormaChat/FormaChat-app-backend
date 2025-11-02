@@ -1,1 +1,0 @@
-//tect splitting logic

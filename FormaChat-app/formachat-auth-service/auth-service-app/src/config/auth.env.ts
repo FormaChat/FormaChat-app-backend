@@ -48,7 +48,7 @@ export const env = cleanEnv(process.env, {
   JWT_REFRESH_SECRET: str(),
   JWT_ACCESS_EXPIRES_IN: num({default: 900}),
   JWT_REFRESH_EXPIRES_IN: str({ default: '7d' }),
-  JWT_ISSUER: str({ default: 'auth-service' }),
+  JWT_ISSUER: str({ default: 'formachat-auth-service' }),
   BCRYPT_ROUNDS: num({ default: 12 }),
 
   // CORS

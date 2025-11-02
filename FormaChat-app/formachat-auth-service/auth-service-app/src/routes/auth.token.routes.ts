@@ -6,6 +6,7 @@ import { refreshTokenSchema } from '../middleware/auth.validation.middleware';
 import { jwtMiddleware } from '../middleware/auth.jwt.middleware';
 import { loggerMiddleware } from '../middleware/auth.logger.middleware';
 import { redisManager } from '../config/auth.redis';
+import { internalAuthMiddleware } from '../middleware/auth.internalAuth.middleware';
 
 const router = Router();
 
@@ -60,6 +61,7 @@ router.post(
 router.post(
   '/token/validate',
   loggerMiddleware,
+  internalAuthMiddleware,
   asyncHandler(tokenController.validateToken)
 );
 
