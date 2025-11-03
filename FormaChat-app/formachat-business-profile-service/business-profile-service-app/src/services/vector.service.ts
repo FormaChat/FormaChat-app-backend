@@ -76,7 +76,9 @@ export class VectorService {
         throw new Error(`Business not found: ${businessId}`);
       }
 
-      if (business.vectorInfo.vectorStatus === 'pending') {
+      const isRecentAttempt = business.vectorInfo.lastSyncAttempt && (Date.now() - business.vectorInfo.lastSyncAttempt.getTime()) < 60000;
+
+      if (business.vectorInfo.vectorStatus === 'pending' && isRecentAttempt) {
         logger.info(`[Vector] Update already in progress for ${businessId}, skipping...`);
         return;
       }
@@ -186,7 +188,11 @@ export class VectorService {
       logger.info(`[Vector] ✓ Vector update completed successfully for: ${businessId}`);
 
     } catch (error: any) {
-      logger.error(`[Vector] ✗ Vector update failed for ${businessId}:`, error.message);
+      logger.error(`[Vector] ✗ Vector update failed for ${businessId}:`, {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
 
       // UPDATE MONGODB STATUS - FAILURE
       if (business) {

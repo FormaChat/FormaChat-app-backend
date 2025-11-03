@@ -52,14 +52,11 @@ export class OTPController {
         metadata: { ipAddress, userAgent }
       });
 
-      // TODO: Publish event to appropriate service (email/SMS) with otpId
-      logger.info('OTP generated', { userId: user.id, type, otpId });
-
+  
       res.json({
         success: true,
         message: 'If the email exists, an OTP has been sent',
-        // In production, don't return otpId to client for email_verification and password_reset
-        // It's returned here for testing purposes
+        
         data: type === '2fa' ? { otpId } : undefined
       });
 
@@ -173,9 +170,6 @@ export class OTPController {
         type: type as any,
         metadata: { ipAddress, userAgent }
       });
-
-      // TODO: Publish event to appropriate service
-      logger.info('OTP resent', { userId: user.id, type, otpId });
 
       res.json({
         success: true,

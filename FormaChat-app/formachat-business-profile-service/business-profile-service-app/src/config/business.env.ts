@@ -25,14 +25,15 @@ export const env = cleanEnv(process.env, {
 
   // Vector DB - Pinecone
   PINECONE_API_KEY: str(),
-  PINECONE_ENVIRONMENT: str({ default: 'us-east-1-aws' }),
-  PINECONE_INDEX_NAME: str({ default: 'formachat-messages' }),
+  PINECONE_ENVIRONMENT: str({ default: 'us-east-1' }),
+  PINECONE_INDEX_NAME: str({ default: 'formachat-businesses' }),
 
   // OpenAI
-  OPENAI_API_KEY: str(),
-  OPENAI_EMBEDDING_MODEL: str({default: 'text-embedding-3-small'}),
-  OPENAI_MAX_RETRIES: str({default: '3'}),
-  OPENAI_TIMEOUT: str({default: '60000'}),
+  // # OpenAI (DEPRECATED - now using Pinecone Inference)
+  // # OPENAI_API_KEY=sk-...
+  // # OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+  // # OPENAI_MAX_RETRIES=3
+  // # OPENAI_TIMEOUT=30000
 
   // JWT
   JWT_ACCESS_SECRET: str(),
@@ -74,12 +75,7 @@ export const env = cleanEnv(process.env, {
     process.exit(1);
   }
 
-  // OpenAI API Key validation
-  if (!env.OPENAI_API_KEY) {
-    logger.error('❌ OPENAI_API_KEY is required for embeddings');
-    process.exit(1);
-  }
-
+  
   // Internal service secret validation
   if (!env.INTERNAL_SERVICE_SECRET || env.INTERNAL_SERVICE_SECRET.length < 32) {
     logger.error('❌ INTERNAL_SERVICE_SECRET must be at least 32 characters long');
@@ -116,9 +112,7 @@ export const pineconeOptions = {
   index: env.PINECONE_INDEX_NAME,
 };
 
-export const openAIOptions = {
-  apiKey: env.OPENAI_API_KEY,
-};
+
 
 export const serviceUrls = {
   auth: env.AUTH_SERVICE_URL,

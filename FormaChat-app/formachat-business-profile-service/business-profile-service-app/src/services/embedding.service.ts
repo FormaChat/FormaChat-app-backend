@@ -1,4 +1,4 @@
-import { createEmbeddings } from '../config/openai';
+import { createEmbeddings } from '../config/pinecone';
 import axios from 'axios';
 import mammoth from 'mammoth';
 import Tesseract from 'tesseract.js';
@@ -76,7 +76,11 @@ export class EmbeddingService {
       return results;
 
     } catch (error: any) {
-      logger.error('[Embedding] Text embedding failed:', error.message);
+      logger.error('[Embedding] Text embedding failed:', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack
+      });
       throw error;
     }
   }

@@ -25,11 +25,13 @@ export interface TokenVerificationResult {
 
 /**
  * Token service handling JWT tokens and refresh tokens
- */
+*/
+
 export class TokenService {
   /**
    * Generate access token (JWT)
-   */
+  */
+
   async generateAccessToken(userId: string, email: string): Promise<string> {
     try {
       const payload: TokenPayload = {
@@ -50,7 +52,8 @@ export class TokenService {
 
   /**
    * Generate refresh token and store in database
-   */
+  */
+
   async generateRefreshToken(userId: string, deviceInfo: { userAgent: string; ipAddress: string }): Promise<string> {
     try {
       // Generate secure random token
@@ -88,7 +91,8 @@ export class TokenService {
 
   /**
    * Generate both access and refresh tokens
-   */
+  */
+
   async generateTokenPair(userId: string, email: string, deviceInfo: { userAgent: string; ipAddress: string }): Promise<TokenPair> {
     const [accessToken, refreshToken] = await Promise.all([
       this.generateAccessToken(userId, email),
@@ -100,7 +104,8 @@ export class TokenService {
 
   /**
    * Verify access token (JWT)
-   */
+  */
+
   async verifyAccessToken(token: string): Promise<TokenVerificationResult> {
     try {
       const payload = jwt.verify(token, env.JWT_ACCESS_SECRET, {
@@ -119,7 +124,8 @@ export class TokenService {
 
   /**
    * Verify refresh token
-   */
+  */
+
   async verifyRefreshToken(token: string): Promise<TokenVerificationResult> {
     try {
       const tokenHash = await CryptoUtils.hashData(token);
@@ -150,7 +156,8 @@ export class TokenService {
 
   /**
    * Revoke refresh token (logout)
-   */
+  */
+ 
   async revokeRefreshToken(token: string): Promise<void> {
     try {
       const tokenHash = await CryptoUtils.hashData(token);

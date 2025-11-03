@@ -28,7 +28,11 @@ export class TokenController {
         userAgent
       });
 
-      
+      // 🔥 TEMPORARY: Log tokens for Postman testing (REMOVE IN PRODUCTION)
+       logger.info('TOKEN REFRESH SUCCESS', {
+        accessToken: result.accessToken,
+        refreshToken: result.newRefreshToken || refreshToken
+      });
 
       res.json({
         success: true,

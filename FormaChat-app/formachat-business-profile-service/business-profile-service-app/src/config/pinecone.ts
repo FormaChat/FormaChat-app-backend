@@ -2,23 +2,22 @@ import { Pinecone } from '@pinecone-database/pinecone';
 import { createLogger } from '../utils/business.logger.utils';
 import { env } from './business.env';
 
-
-
 const logger = createLogger('pinecone-config');
 
 /**
  * ========================================
- * PINECONE CONFIGURATION (Storage Only)
+ * PINECONE CONFIGURATION (Storage + Inference)
  * ========================================
  * 
- * This file sets up Pinecone for storing business embeddings.
+ * Now handles BOTH:
+ * 1. Creating embeddings (via Pinecone Inference - FREE!)
+ * 2. Storing vectors
  * 
- * Purpose: 
- * - Store vectors when business created
- * - Update vectors when business updated
- * - Delete vectors when business deleted/frozen
- * 
- * Note: Query/retrieval logic will be in Chat Service (later)
+ * Benefits:
+ * - No OpenAI dependency
+ * - Free embeddings
+ * - One less API to manage
+ * - Faster (no extra network hop)
  */
 
 class PineconeConfig {
@@ -28,12 +27,13 @@ class PineconeConfig {
     apiKey: env.PINECONE_API_KEY,
     environment: env.PINECONE_ENVIRONMENT,
     indexName: env.PINECONE_INDEX_NAME,
+    // Pinecone's free embedding model
+    embeddingModel: 'multilingual-e5-large', // 1024 dimensions, FREE!
   };
 
   /**
    * Get Pinecone client (Singleton)
-  */
-
+   */
   public static getClient(): Pinecone {
     if (!PineconeConfig.instance) {
       if (!PineconeConfig.config.apiKey) {
@@ -44,7 +44,10 @@ class PineconeConfig {
         apiKey: PineconeConfig.config.apiKey,
       });
 
-      logger.info('[Pinecone] Client initialized');
+      logger.info('[Pinecone] Client initialized', {
+        indexName: PineconeConfig.config.indexName,
+        embeddingModel: PineconeConfig.config.embeddingModel
+      });
     }
 
     return PineconeConfig.instance;
@@ -52,8 +55,7 @@ class PineconeConfig {
 
   /**
    * Get the Pinecone index (where vectors are stored)
-  */
-
+   */
   public static getIndex() {
     const client = PineconeConfig.getClient();
     return client.index(PineconeConfig.config.indexName);
@@ -67,37 +69,180 @@ class PineconeConfig {
   }
 
   /**
+   * Get embedding model name
+   */
+  public static getEmbeddingModel(): string {
+    return PineconeConfig.config.embeddingModel;
+  }
+
+  /**
+   * Get embedding dimensions
+   * IMPORTANT: Your Pinecone index must be created with dimension: 1024
+   */
+  public static getEmbeddingDimensions(): number {
+    // multilingual-e5-large uses 1024 dimensions
+    return 1024;
+  }
+
+  /**
+   * ========================================
+   * CREATE EMBEDDINGS (via Pinecone Inference)
+   * ========================================
+   * 
+   * This replaces OpenAI's embedding API.
+   * Uses Pinecone's built-in inference - completely FREE!
+   * 
+   * @param texts - Array of text strings to embed
+   * @returns Array of embedding vectors
+   */
+  public static async createEmbeddings(texts: string[]): Promise<number[][]> {
+    const startTime = Date.now();
+    
+    try {
+      // Validation
+      if (!texts || texts.length === 0) {
+        logger.warn('[Pinecone] Empty texts array provided');
+        return [];
+      }
+
+      // Filter out empty strings and validate
+      const validTexts = texts.filter(text => {
+        if (typeof text !== 'string') {
+          logger.warn('[Pinecone] Non-string value in texts array:', { type: typeof text });
+          return false;
+        }
+        return text.trim().length > 0;
+      });
+
+      if (validTexts.length === 0) {
+        logger.warn('[Pinecone] No valid texts after filtering');
+        return [];
+      }
+
+      const client = PineconeConfig.getClient();
+      const model = PineconeConfig.getEmbeddingModel();
+      
+      logger.info('[Pinecone] Creating embeddings', {
+        model,
+        textCount: validTexts.length,
+        totalChars: validTexts.reduce((sum, t) => sum + t.length, 0),
+        averageChars: Math.round(validTexts.reduce((sum, t) => sum + t.length, 0) / validTexts.length)
+      });
+
+      // Use Pinecone Inference API
+      const embeddingResponse = await client.inference.embed(
+        model,
+        validTexts,
+        { inputType: 'passage', truncate: 'END' }
+      );
+
+      // Extract embeddings from response
+      const embeddings: number[][] = [];
+
+      // Extract values from each embedding (handling both dense and sparse types)
+      for (const item of embeddingResponse.data) {
+        // Check if this is a dense embedding (has 'values' property)
+        if ('values' in item && Array.isArray(item.values)) {
+          embeddings.push(item.values);
+        } 
+        // If it's sparse, we don't support it yet
+        else if ('indices' in item && 'values' in item) {
+          throw new Error('Sparse embeddings are not supported. Use a dense embedding model.');
+        }
+        // Unknown format
+        else {
+          throw new Error('Unknown embedding format received from Pinecone');
+        }
+      }
+
+      // Validate embeddings
+      if (embeddings.length === 0) {
+        throw new Error('No valid embeddings extracted from response');
+      }
+
+      const expectedDim = PineconeConfig.getEmbeddingDimensions();
+      const invalidEmbedding = embeddings.find(emb => 
+        !Array.isArray(emb) || emb.length !== expectedDim
+      );
+
+      if (invalidEmbedding) {
+        throw new Error(`Invalid embedding dimensions. Expected ${expectedDim}, got ${invalidEmbedding?.length}`);
+      }
+
+      const duration = Date.now() - startTime;
+
+      logger.info('[Pinecone] ✓ Embeddings created successfully', {
+        count: embeddings.length,
+        dimensions: embeddings[0]?.length,
+        duration: `${duration}ms`,
+        model
+      });
+
+      return embeddings;
+
+    } catch (error: any) {
+      const duration = Date.now() - startTime;
+      
+      const errorDetails = {
+        message: error?.message || 'Unknown error',
+        status: error?.status,
+        code: error?.code,
+        duration: `${duration}ms`,
+        model: PineconeConfig.getEmbeddingModel(),
+        textCount: texts.length
+      };
+
+      logger.error('[Pinecone] Embedding creation failed', errorDetails);
+
+      // Specific error handling
+      if (error?.status === 401 || error?.message?.includes('authentication')) {
+        throw new Error('Pinecone API key is invalid or expired');
+      }
+      
+      if (error?.status === 429) {
+        throw new Error('Pinecone rate limit exceeded. Please wait and try again');
+      }
+      
+      if (error?.status === 400) {
+        throw new Error(`Pinecone bad request: ${error?.message || 'Invalid input'}`);
+      }
+
+      if (error?.code === 'ECONNREFUSED' || error?.code === 'ETIMEDOUT') {
+        throw new Error('Network error connecting to Pinecone. Check your internet connection');
+      }
+
+      throw new Error(`Pinecone embedding failed: ${error?.message || 'Unknown error'}`);
+    }
+  }
+
+  /**
    * ========================================
    * UPSERT VECTORS (Store or Update)
    * ========================================
-   * 
-   * Stores vectors in Pinecone. If vectors with same IDs exist, they get updated.
-   * This is used when:
-   * - Business created (initial storage)
-   * - Business updated (replace existing vectors)
-   * 
-   * @param namespace - Business-specific namespace (e.g., "business_507f1f77bcf86cd799439011")
-   * @param vectors - Array of vectors to store
-  */
-
+   */
   public static async upsertVectors(
     namespace: string,
     vectors: Array<{
-      id: string;              // Unique ID for each vector chunk
-      values: number[];        // The embedding vector (1536 or 3072 numbers)
-      metadata?: Record<string, any>; // Additional data (businessId, text, etc.)
+      id: string;
+      values: number[];
+      metadata?: Record<string, any>;
     }>
   ): Promise<void> {
     try {
       const index = PineconeConfig.getIndex();
 
-      // Upsert to specific namespace (isolated per business)
       await index.namespace(namespace).upsert(vectors);
 
-      logger.info(`[Pinecone] Upserted ${vectors.length} vectors to namespace: ${namespace}`);
+      logger.info('[Pinecone] ✓ Vectors upserted', {
+        namespace,
+        count: vectors.length
+      });
 
     } catch (error: any) {
-      logger.error('[Pinecone] Upsert failed:', error.message);
+      logger.error('[Pinecone] Upsert failed', {
+        message: error?.message,
+        namespace
+      });
       throw error;
     }
   }
@@ -106,27 +251,20 @@ class PineconeConfig {
    * ========================================
    * DELETE NAMESPACE (Clear Business Data)
    * ========================================
-   * 
-   * Deletes all vectors in a namespace.
-   * This is used when:
-   * - Business permanently deleted
-   * - Business frozen (optional - depends on your strategy)
-   * - Business needs full re-indexing
-   * 
-   * @param namespace - Business namespace to clear
-  */
-
+   */
   public static async deleteNamespace(namespace: string): Promise<void> {
     try {
       const index = PineconeConfig.getIndex();
 
-      // Delete all vectors in this namespace
       await index.namespace(namespace).deleteAll();
 
-      logger.info(`[Pinecone] Deleted all vectors in namespace: ${namespace}`);
+      logger.info('[Pinecone] ✓ Namespace deleted', { namespace });
 
     } catch (error: any) {
-      logger.error('[Pinecone] Namespace deletion failed:', error.message);
+      logger.error('[Pinecone] Namespace deletion failed', {
+        message: error?.message,
+        namespace
+      });
       throw error;
     }
   }
@@ -135,16 +273,7 @@ class PineconeConfig {
    * ========================================
    * DELETE SPECIFIC VECTORS
    * ========================================
-   * 
-   * Deletes specific vectors by ID.
-   * Useful for:
-   * - Removing specific document embeddings
-   * - Partial updates (delete old, insert new)
-   * 
-   * @param namespace - Business namespace
-   * @param vectorIds - Array of vector IDs to delete
-  */
-
+   */
   public static async deleteVectors(
     namespace: string,
     vectorIds: string[]
@@ -154,10 +283,16 @@ class PineconeConfig {
 
       await index.namespace(namespace).deleteMany(vectorIds);
 
-      logger.info(`[Pinecone] Deleted ${vectorIds.length} vectors from namespace: ${namespace}`);
+      logger.info('[Pinecone] ✓ Vectors deleted', {
+        namespace,
+        count: vectorIds.length
+      });
 
     } catch (error: any) {
-      logger.error('[Pinecone] Vector deletion failed:', error.message);
+      logger.error('[Pinecone] Vector deletion failed', {
+        message: error?.message,
+        namespace
+      });
       throw error;
     }
   }
@@ -166,16 +301,7 @@ class PineconeConfig {
    * ========================================
    * GET NAMESPACE STATS
    * ========================================
-   * 
-   * Returns statistics about a namespace.
-   * Useful for:
-   * - Checking if vectors exist
-   * - Monitoring storage usage
-   * - Debugging
-   * 
-   * @param namespace - Business namespace
-  */
-
+   */
   public static async getNamespaceStats(namespace: string): Promise<{
     vectorCount: number;
     namespace: string;
@@ -192,7 +318,10 @@ class PineconeConfig {
       };
 
     } catch (error: any) {
-      logger.error('[Pinecone] Stats retrieval failed:', error.message);
+      logger.error('[Pinecone] Stats retrieval failed', {
+        message: error?.message,
+        namespace
+      });
       throw error;
     }
   }
@@ -201,18 +330,7 @@ class PineconeConfig {
    * ========================================
    * UPDATE VECTOR METADATA
    * ========================================
-   * 
-   * Updates metadata for existing vectors without changing the vector values.
-   * Useful for:
-   * - Marking vectors as frozen
-   * - Adding tags or categories
-   * - Updating business info without re-embedding
-   * 
-   * @param namespace - Business namespace
-   * @param vectorId - ID of vector to update
-   * @param metadata - New metadata to set
-  */
-
+   */
   public static async updateVectorMetadata(
     namespace: string,
     vectorId: string,
@@ -226,10 +344,13 @@ class PineconeConfig {
         metadata,
       });
 
-      logger.info(`[Pinecone] Updated metadata for vector: ${vectorId}`);
+      logger.info('[Pinecone] ✓ Metadata updated', { vectorId });
 
     } catch (error: any) {
-      logger.error('[Pinecone] Metadata update failed:', error.message);
+      logger.error('[Pinecone] Metadata update failed', {
+        message: error?.message,
+        vectorId
+      });
       throw error;
     }
   }
@@ -238,11 +359,7 @@ class PineconeConfig {
    * ========================================
    * CHECK IF INDEX EXISTS
    * ========================================
-   * 
-   * Checks if the Pinecone index exists.
-   * Useful for initialization and health checks.
-  */
-
+   */
   public static async indexExists(): Promise<boolean> {
     try {
       const client = PineconeConfig.getClient();
@@ -255,7 +372,9 @@ class PineconeConfig {
       return exists || false;
 
     } catch (error: any) {
-      logger.error('[Pinecone] Index check failed:', error.message);
+      logger.error('[Pinecone] Index check failed', {
+        message: error?.message
+      });
       return false;
     }
   }
@@ -265,6 +384,11 @@ class PineconeConfig {
 export const getPineconeClient = PineconeConfig.getClient.bind(PineconeConfig);
 export const getPineconeIndex = PineconeConfig.getIndex.bind(PineconeConfig);
 export const getIndexName = PineconeConfig.getIndexName.bind(PineconeConfig);
+export const getEmbeddingModel = PineconeConfig.getEmbeddingModel.bind(PineconeConfig);
+export const getEmbeddingDimensions = PineconeConfig.getEmbeddingDimensions.bind(PineconeConfig);
+
+// NEW: Embedding creation (replaces OpenAI)
+export const createEmbeddings = PineconeConfig.createEmbeddings.bind(PineconeConfig);
 
 // Storage operations
 export const upsertVectors = PineconeConfig.upsertVectors.bind(PineconeConfig);
@@ -277,41 +401,3 @@ export const getNamespaceStats = PineconeConfig.getNamespaceStats.bind(PineconeC
 export const indexExists = PineconeConfig.indexExists.bind(PineconeConfig);
 
 export default PineconeConfig;
-
-/**
- * ========================================
- * USAGE EXAMPLES (Business Service)
- * ========================================
- * 
- * // 1. Store business vectors
- * import { upsertVectors } from '@/config/pinecone.config';
- * 
- * await upsertVectors('business_507f1f77bcf86cd799439011', [
- *   {
- *     id: 'chunk_0',
- *     values: [0.123, -0.456, ...], // 1536 numbers
- *     metadata: {
- *       businessId: '507f1f77bcf86cd799439011',
- *       text: 'Joe\'s Pizza serves...',
- *       chunkIndex: 0
- *     }
- *   }
- * ]);
- * 
- * // 2. Update business (clear old, store new)
- * import { deleteNamespace, upsertVectors } from '@/config/pinecone.config';
- * 
- * await deleteNamespace('business_507f1f77bcf86cd799439011');
- * await upsertVectors('business_507f1f77bcf86cd799439011', newVectors);
- * 
- * // 3. Delete business
- * import { deleteNamespace } from '@/config/pinecone.config';
- * 
- * await deleteNamespace('business_507f1f77bcf86cd799439011');
- * 
- * // 4. Check storage
- * import { getNamespaceStats } from '@/config/pinecone.config';
- * 
- * const stats = await getNamespaceStats('business_507f1f77bcf86cd799439011');
- * console.log(`Stored ${stats.vectorCount} vectors`);
- */

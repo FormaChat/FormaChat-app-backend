@@ -82,12 +82,8 @@ export class OTPService {
         metadata
       });
 
-      logger.info('OTP generated', {userId, type, otpId, otp});
-
-
-      // TODO: Publish otp.generated event (with otpid only, not actual otp)
-      // await eventproducer.publishOTPGeneration({otpid, userid, type});
-
+      logger.info('OTP generated', {userId, type, otpId, expiresAt});
+      
       const user = await UserModel.findById(userId);
       if (user) {
         await publishOTPGenerated({

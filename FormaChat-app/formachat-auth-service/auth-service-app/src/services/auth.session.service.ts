@@ -99,7 +99,14 @@ export class SessionService {
     try {
       // Verify refresh token
       const verification = await tokenService.verifyRefreshToken(refreshToken);
+
+      logger.info('Refresh token verification result', { 
+        valid: verification.valid, 
+        error: verification.error 
+      });
+
       if (!verification.valid || !verification.payload) {
+        logger.warn('Invalid refresh token', { error: verification.error });
         throw new Error('INVALID_REFRESH_TOKEN');
       }
 
@@ -121,7 +128,10 @@ export class SessionService {
 
       return { accessToken };
     } catch (error:any) {
-      logger.error('Error refreshing session:', error);
+      logger.error('Error refreshing session:', { 
+        message: error.message, 
+        stack: error.stack 
+      });
       throw new Error('SESSION_REFRESH_FAILED');
     }
   }
@@ -147,28 +157,25 @@ export class SessionService {
   /**
    * Revoking all existing sessions to ensure single session of users per login 
   */
-
   async revokeAllUserSessions(
     userId: string, 
     context: { ipAddress: string; userAgent: string; reason?: string }
   ): Promise<void> {
     try {
-      // Get all active sessions for user
-      const sessions = await this.getActiveSessionInfo(userId);
-      
-      // Revoke each session
-      for (const session of sessions) {
-        await this.revokeCurrentSession(session.refreshToken, context);
-      }
+      // 🔥 FIX: Use token service's bulk revoke instead
+      await tokenService.revokeAllUserTokens(userId);
       
       logger.info('All user sessions revoked', { 
         userId, 
-        sessionCount: sessions.length,
         reason: context.reason 
       });
     } catch (error: any) {
-      logger.error('Failed to revoke all user sessions', { userId, error: error.message });
-      throw error;
+      logger.error('Failed to revoke all user sessions', { 
+        userId, 
+        error: error.message 
+      });
+      // 🔥 DON'T throw - just log and continue
+      // Session revocation failure shouldn't block login
     }
   }
 }

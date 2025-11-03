@@ -20,8 +20,8 @@ app.use(express.urlencoded({extended:true}));
 
 // Routes
 
-app.use('api/v1', businessRoutes);
-app.use('api/v1/admin', adminRoutes);
-app.use('api/v1/internal', internalRoutes);
+app.use('/api/v1', businessRoutes);
+app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/internal', internalRoutes);
 
 export default app;
