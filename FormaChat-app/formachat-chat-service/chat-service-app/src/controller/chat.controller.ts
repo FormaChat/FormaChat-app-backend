@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { chatService } from '../services/chat.service';
-import { createLogger } from '../utils/chat.logger.utils';
+import { chatService } from '../service/chat.service';
+import { createLogger } from '../util/chat.logger.utils';
 
 const logger = createLogger('chat-controller');
 

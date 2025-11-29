@@ -1,6 +1,6 @@
 import { createClient, RedisClientType } from 'redis';
 import { env } from './chat.env.config';
-import { createLogger } from '../utils/chat.logger.utils';
+import { createLogger } from '../util/chat.logger.utils';
 
 const logger = createLogger("redis-cache-service");
 

@@ -15,7 +15,6 @@
     "declaration": true,
     "moduleResolution": "node",
     "types": ["node", "express"],
-    "typeRoots": ["./src/types", "./node_modules/@types", "./types"],
     "allowJs": true,
     "checkJs": false
   },

@@ -21,6 +21,7 @@ interface EnvConfig {
   
   // MongoDB
   MONGODB_URI: string;
+
   JWT_ACCESS_SECRET: string;
   
   // Pinecone (Query only - no upsert in chat service)
@@ -106,7 +107,7 @@ class EnvironmentValidator {
       'MONGODB_URI',
       true
     );
-    
+
     const jsonwebtoken = this.getEnv('JWT_ACCESS_SECRET', true);
     // Pinecone
     const pineconeApiKey = this.getEnv('PINECONE_API_KEY', true);

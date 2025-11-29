@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import axios from 'axios';
 import { env } from '../config/chat.env.config';
-import { createLogger } from '../utils/chat.logger.utils';
+import { createLogger } from '../util/chat.logger.utils';
 
 const logger = createLogger('ownership-middleware');
 

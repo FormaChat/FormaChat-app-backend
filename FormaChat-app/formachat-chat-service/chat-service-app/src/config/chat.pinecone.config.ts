@@ -1,5 +1,5 @@
 import { Pinecone } from '@pinecone-database/pinecone';
-import { createLogger } from '../utils/chat.logger.utils';
+import { createLogger } from '../util/chat.logger.utils';
 import { env } from './chat.env.config';
 
 const logger = createLogger('pinecone-query-service');

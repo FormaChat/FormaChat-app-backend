@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
 import { ChatSession, ChatMessage, ContactLead } from '../model/chat.model';
-import { createLogger } from '../utils/chat.logger.utils';
+import { createLogger } from '../util/chat.logger.utils';
 import { checkDailyLimit, incrementSessionCount } from '../config/chat.redis.config';
 import { searchBusiness } from '../config/chat.pinecone.config';
 import { getLLMProvider } from '../config/llm/llm.factory';

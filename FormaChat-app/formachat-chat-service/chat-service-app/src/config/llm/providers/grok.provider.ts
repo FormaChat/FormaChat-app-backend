@@ -9,7 +9,7 @@ import {
   LLMAuthenticationError,
   LLMTimeoutError
 } from '../llm.interface';
-import { createLogger } from '../../../utils/chat.logger.utils';
+import { createLogger } from '../../../util/chat.logger.utils';
 
 const logger = createLogger('groq-provider');
 
