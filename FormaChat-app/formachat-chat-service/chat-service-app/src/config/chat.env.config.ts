@@ -112,11 +112,11 @@ class EnvironmentValidator {
     // Pinecone
     const pineconeApiKey = this.getEnv('PINECONE_API_KEY', true);
     const pineconeEnvironment = this.getEnv('PINECONE_ENVIRONMENT', false) || 'us-east-1-aws';
-    const pineconeIndexName = this.getEnv('PINECONE_INDEX_NAME', false) || 'formachat-vectors';
+    const pineconeIndexName = this.getEnv('PINECONE_INDEX_NAME', false) || 'formachat-businesses';
     
     // Groq LLM
     const groqApiKey = this.getEnv('GROQ_API_KEY', true);
-    const groqModel = this.getEnv('GROQ_MODEL', false) || 'llama-3.1-70b-versatile';
+    const groqModel = this.getEnv('GROQ_MODEL', false) || 'llama-3.3-70b-versatile';
     const groqTemperature = this.getEnv('GROQ_TEMPERATURE', false) || '0.7';
     const groqMaxTokens = this.getEnv('GROQ_MAX_TOKENS', false) || '500';
     

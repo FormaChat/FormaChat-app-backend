@@ -279,7 +279,7 @@ const ChatMessageSchema: Schema = new Schema({
         required: true,
         index: true,
     },
-    bussinessId: {
+    businessId: {
         type: String,
         required: true,
         index: true,

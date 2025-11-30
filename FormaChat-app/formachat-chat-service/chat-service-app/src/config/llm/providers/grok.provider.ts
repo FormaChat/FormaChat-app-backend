@@ -44,7 +44,7 @@ export class GroqProvider implements LLMProvider {
       apiKey: config.apiKey,
     });
 
-    this.model = config.model || 'llama-3.1-70b-versatile';
+    this.model = config.model || 'llama-3.3-70b-versatile';
     this.temperature = config.temperature ?? 0.7;
     this.maxTokens = config.maxTokens ?? 500;
 

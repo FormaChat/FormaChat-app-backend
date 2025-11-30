@@ -30,7 +30,7 @@ type SupportedProvider = 'groq' | 'gemini' | 'claude' | 'openai';
 const PROVIDER_CONFIGS = {
   groq: {
     apiKey: process.env.GROQ_API_KEY || '',
-    model: process.env.GROQ_MODEL || 'llama-3.1-70b-versatile',
+    model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
     temperature: parseFloat(process.env.GROQ_TEMPERATURE || '0.7'),
     maxTokens: parseInt(process.env.GROQ_MAX_TOKENS || '500'),
   },
