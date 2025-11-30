@@ -11,7 +11,7 @@ import * as adminBusinessController from '../controllers/admin.controllers';
  * - GET    /admin/frozen-businesses       → List frozen businesses
  */
 
-const router = Router();
+const router: Router = Router();
 
 
 router.get(

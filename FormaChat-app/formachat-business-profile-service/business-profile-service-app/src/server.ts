@@ -1,7 +1,8 @@
-import { Logger } from 'winston';
 import app from './app';
 import { databaseManager } from './config/business.database';
-import { logger } from './utils/business.logger.utils';
+import { createLogger } from './utils/business.logger.utils';
+
+const logger = createLogger("server");
 
 const PORT = process.env.PORT;
 

@@ -32,7 +32,7 @@ import * as internalBusinessController from '../controllers/internal.controllers
  * - GET /internal/businesses/:id/features → Feature flags based on tier
 */
 
-const router = Router();
+const router: Router = Router();
 
 /**
  * ========================================

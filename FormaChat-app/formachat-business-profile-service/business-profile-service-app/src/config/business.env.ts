@@ -43,6 +43,7 @@ export const env = cleanEnv(process.env, {
   AUTH_SERVICE_URL: url(),
   PAYMENT_SERVICE_URL: url(),
   CHAT_SERVICE_URL: url(),
+  BUSINESS_SERVICE_URL: url(),
 
   // File Upload (for future)
   CLOUD_STORAGE_BUCKET: str({ default: '' }),
@@ -118,6 +119,7 @@ export const serviceUrls = {
   auth: env.AUTH_SERVICE_URL,
   payment: env.PAYMENT_SERVICE_URL,
   chat: env.CHAT_SERVICE_URL,
+  business: env.BUSINESS_SERVICE_URL,
 };
 
 export const securityConfig = {

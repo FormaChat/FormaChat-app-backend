@@ -1,4 +1,4 @@
-import express from 'express';
+import express, {Router} from 'express';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { 
   ownershipMiddleware, 
@@ -13,7 +13,7 @@ import {
   deleteBusiness
 } from '../controllers/business.controllers';
 
-const router = express.Router();
+const router: Router = express.Router();
 
 router.post('/businesses', authMiddleware, createBusiness);
 
