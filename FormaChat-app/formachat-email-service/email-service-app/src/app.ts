@@ -1,10 +1,10 @@
-import express from 'express';
+import express, {Express} from 'express';
 import { securityHeadersManager } from "./config/email.helmet";
 import { corsManager } from './config/email.cors';
 import cors from 'cors';
 import healthRoutes from './api/routes/email.health.routes';
 
-const app = express();
+const app: Express = express();
 
 // Basic middleware
 app.use(express.json());

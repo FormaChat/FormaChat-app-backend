@@ -10,7 +10,7 @@ import { createLogger } from '../utils/auth.logger.utils';
 const logger = createLogger('auth-register-routes');
 
 
-const router = Router();
+const router:Router = Router();
 
 const createRateLimiter = (windowMs: number, maxRequests: number, errorCode: string, errorMessage: string) => {
   return async (req: any, res: any, next: any) => {

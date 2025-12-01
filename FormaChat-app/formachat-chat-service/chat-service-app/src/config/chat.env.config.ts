@@ -123,8 +123,8 @@ class EnvironmentValidator {
     // Redis
     const redisUrl = this.getEnv(
       'REDIS_URL',
-      false
-    ) || 'redis://localhost:6379';
+      true
+    ) 
     const redisPassword = this.getEnv('REDIS_PASSWORD', false);
     
     // Session Configuration

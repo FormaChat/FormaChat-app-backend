@@ -7,7 +7,7 @@ import { jwtMiddleware } from '../middleware/auth.jwt.middleware';
 import { idempotencyMiddleware } from '../middleware/auth.idempotency.middleware';
 import { loggerMiddleware } from '../middleware/auth.logger.middleware';
 
-const router = Router();
+const router:Router = Router();
 
 // Get user profile
 router.get(

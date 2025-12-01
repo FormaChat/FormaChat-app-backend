@@ -82,7 +82,7 @@ if (isDevelopment) {
 }
 
 // File transport for persistent logging
-if (isProduction || process.env.ENABLE_FILE_LOGGING === 'true') {
+if (process.env.ENABLE_FILE_LOGGING === 'true') {
   // Ensure logs directory exists
   const logDir = path.dirname(LOG_FILE_PATH);
   if (!fs.existsSync(logDir)) {

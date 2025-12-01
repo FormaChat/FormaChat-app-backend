@@ -38,7 +38,7 @@ export const env = cleanEnv(process.env, {
   IDEMPOTENCY_KEY_TTL: num({ default: 3600 }),
 
   // RabbitMQ
-  RABBITMQ_URL: str({ default: 'amqp://localhost:5672' }),
+  RABBITMQ_URL: str({ default: '' }),
   RABBITMQ_EXCHANGE: str({ default: 'auth.exchange' }),
   RABBITMQ_RETRY_ATTEMPTS: num({ default: 3 }),
   RABBITMQ_RETRY_DELAY: num({ default: 5000 }),

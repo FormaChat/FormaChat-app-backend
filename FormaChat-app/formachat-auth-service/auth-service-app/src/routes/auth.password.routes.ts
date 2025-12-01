@@ -16,7 +16,7 @@ import { createLogger } from '../utils/auth.logger.utils';
 
 const logger = createLogger('auth-password-routes');
 
-const router = Router();
+const router:Router = Router();
 
 // Rate limiter
 const createRateLimiter = (windowMs: number, maxRequests: number, errorCode: string, errorMessage: string) => {

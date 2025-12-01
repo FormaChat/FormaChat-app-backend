@@ -5,7 +5,7 @@ import { asyncHandler } from '../middleware/auth.errorHandler.middleware';
 import { internalAuthMiddleware} from '../middleware/auth.internalAuth.middleware';
 import { loggerMiddleware } from '../middleware/auth.logger.middleware';
 
-const router = Router();
+const router:Router = Router();
 
 // All internal routes require service token authentication
 // These should ONLY be accessible by other microservices, not public

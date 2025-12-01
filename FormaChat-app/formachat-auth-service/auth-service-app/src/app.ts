@@ -1,4 +1,4 @@
-import express from 'express';
+import express, {Express} from 'express';
 import { securityHeadersManager } from "./config/auth.helmet";
 import { corsManager } from './config/auth.cors';
 import cors from 'cors';
@@ -12,7 +12,7 @@ import userRoutes from './routes/auth.user.routes';
 import internalRoutes from './routes/auth.internal.routes';
 
 
-const app = express();
+const app: Express = express();
 
 // Middleware
 app.use(express.json());
