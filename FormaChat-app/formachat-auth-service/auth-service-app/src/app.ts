@@ -22,6 +22,7 @@ app.use(cors(corsManager.getCorsConfig()));
 
 
 
+
 // Routes
 
 app.use('/api/v1/auth', healthRoutes);

@@ -1,5 +1,5 @@
 import helmet from 'helmet';
-import { createLogger } from '../utils/email.logger.utils';
+import { createLogger } from '../utils/business.logger.utils';
 
 const logger = createLogger('helmet');
 

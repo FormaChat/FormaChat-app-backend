@@ -1,18 +1,19 @@
 import express,{Express} from 'express';
 import cors from 'cors';
-import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import businessRoutes from './routes/business.routes';
 import adminRoutes from './routes/admin.routes';
 import internalRoutes from './routes/internal.routes';
+import { corsManager } from './config/business.config.cors';
+import { securityHeadersManager } from './config/business.helmet.config';
 
 dotenv.config();
 
 const app: Express = express();
 
-app.use(helmet());
-app.use(cors());
+app.use(securityHeadersManager.getSecurityConfig());
+app.use(cors(corsManager.getCorsConfig()));
 app.use(morgan('combined'));
 app.use(express.json({limit: '10mb'}));
 app.use(express.urlencoded({extended:true}));

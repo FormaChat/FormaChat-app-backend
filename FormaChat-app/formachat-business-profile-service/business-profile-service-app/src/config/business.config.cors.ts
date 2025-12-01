@@ -1,4 +1,4 @@
-import { createLogger } from '../utils/auth.logger.utils';
+import { createLogger } from '../utils/business.logger.utils';
 
 const logger = createLogger('cors');
 

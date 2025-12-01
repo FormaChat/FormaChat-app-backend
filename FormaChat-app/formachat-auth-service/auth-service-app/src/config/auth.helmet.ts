@@ -86,7 +86,7 @@ class SecurityHeadersManager {
       res.setHeader('X-Download-Options', 'noopen');
       
       // Custom headers for your auth service
-      res.setHeader('X-Auth-Service', 'hatforge-auth');
+      res.setHeader('X-Auth-Service', 'formachat-auth');
       res.setHeader('X-API-Version', '1.0.0');
       
       // Remove server identification
