@@ -892,8 +892,6 @@ export class ChatService {
   }> {
     try {
       // Call Business Service internal endpoint
-      logger.info('[Access] Calling Business Service URL', { url: `${env.BUSINESS_SERVICE_URL}/api/v1/internal/businesses/${businessId}/chat-config` });
-
       const response = await axios.get(
         `${env.BUSINESS_SERVICE_URL}/api/v1/internal/businesses/${businessId}/chat-config`,
         {
