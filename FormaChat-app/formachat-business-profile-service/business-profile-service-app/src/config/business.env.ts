@@ -53,9 +53,9 @@ export const env = cleanEnv(process.env, {
   ADMIN_API_KEY: str(),
   
   // CLOUDINARY
-  API_SECRET_CLOUDINARY: str(),
-  API_KEY_CLOUDINARY: str(),
-  CLOUDINARY_URL: str(),
+  // API_SECRET_CLOUDINARY: str(),
+  // API_KEY_CLOUDINARY: str(),
+  // CLOUDINARY_URL: str(),
 
 
   // CORS
@@ -115,12 +115,6 @@ export const pineconeOptions = {
 
 
 
-export const serviceUrls = {
-  auth: env.AUTH_SERVICE_URL,
-  payment: env.PAYMENT_SERVICE_URL,
-  chat: env.CHAT_SERVICE_URL,
-  business: env.BUSINESS_SERVICE_URL,
-};
 
 export const securityConfig = {
   internalServiceSecret: env.INTERNAL_SERVICE_SECRET,
