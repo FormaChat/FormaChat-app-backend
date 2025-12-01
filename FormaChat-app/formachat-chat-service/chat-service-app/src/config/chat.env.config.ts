@@ -142,8 +142,8 @@ class EnvironmentValidator {
     // Business Service URL
     const businessServiceUrl = this.getEnv(
       'BUSINESS_SERVICE_URL',
-      false
-    ) || 'http://localhost:4001';
+      true
+    )
 
     //LLM
     const llmProvider = this.getEnv(
