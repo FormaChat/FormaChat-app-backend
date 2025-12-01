@@ -39,12 +39,7 @@ export const env = cleanEnv(process.env, {
   JWT_ACCESS_SECRET: str(),
   JWT_ISSUER: str({ default: 'formachat-auth-service' }),
 
-  // External Services
-  AUTH_SERVICE_URL: url(),
-  PAYMENT_SERVICE_URL: url(),
-  CHAT_SERVICE_URL: url(),
-  BUSINESS_SERVICE_URL: url(),
-
+  
   // File Upload (for future)
   CLOUD_STORAGE_BUCKET: str({ default: '' }),
   CLOUD_STORAGE_REGION: str({ default: '' }),
