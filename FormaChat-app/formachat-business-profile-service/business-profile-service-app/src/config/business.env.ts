@@ -40,10 +40,7 @@ export const env = cleanEnv(process.env, {
   JWT_ISSUER: str({ default: 'formachat-auth-service' }),
 
   // External Services
-  AUTH_SERVICE_URL: url(),
-  PAYMENT_SERVICE_URL: url(),
-  CHAT_SERVICE_URL: url(),
-  BUSINESS_SERVICE_URL: url(),
+ 
 
   // File Upload (for future)
   CLOUD_STORAGE_BUCKET: str({ default: '' }),
@@ -114,13 +111,6 @@ export const pineconeOptions = {
 };
 
 
-
-export const serviceUrls = {
-  auth: env.AUTH_SERVICE_URL,
-  payment: env.PAYMENT_SERVICE_URL,
-  chat: env.CHAT_SERVICE_URL,
-  business: env.BUSINESS_SERVICE_URL,
-};
 
 export const securityConfig = {
   internalServiceSecret: env.INTERNAL_SERVICE_SECRET,
