@@ -16,12 +16,18 @@ export const idempotencyMiddleware = async (
     return next();
   }
 
-  const idempotencyKey = req.headers['x-idempotency-key'] as string;
+  const idempotencyKey = 
+    req.headers['x-idempotency-key'] as string ||
+    req.headers['idempotency-key'] as string ||
+    req.get('X-Idempotency-Key') ||
+    req.get('Idempotency-Key');
+
   
   if (!idempotencyKey) {
     logger.warn('Missing idempotency key', {
       path: req.path,
-      method: req.method
+      method: req.method,
+      receivedHeaders: Object.keys(req.headers)
     });
     throw new AuthError('Idempotency key required', 400, 'MISSING_IDEMPOTENCY_KEY');
   }
