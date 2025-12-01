@@ -21,7 +21,7 @@ export const env = cleanEnv(process.env, {
  
  
   // RabbitMQ
-  RABBITMQ_URL: str({ default: 'amqp://localhost:5672' }),
+  RABBITMQ_URL: str({ default: '' }),
   RABBITMQ_EXCHANGE: str({ default: 'email.exchange' }),
   RABBITMQ_RETRY_ATTEMPTS: num({ default: 3 }),
   RABBITMQ_RETRY_DELAY: num({ default: 5000 }), // 5 seconds

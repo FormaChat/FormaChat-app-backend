@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { getRabbitMQHealth } from '../../config/email.rabbitmq';
 import { logger } from '../../utils/email.logger.utils';
 
-const router = Router();
+const router:Router = Router();
 
 /**
  * Health check endpoint

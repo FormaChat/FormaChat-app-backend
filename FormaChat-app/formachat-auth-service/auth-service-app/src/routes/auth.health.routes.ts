@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { healthController } from '../controllers/auth.health.controller';
 import { asyncHandler } from '../middleware/auth.errorHandler.middleware';
 
-const router = Router();
+const router:Router = Router();
 
 // Basic health check
 router.get('/health', asyncHandler(healthController.healthCheck)); 
