@@ -1,6 +1,3 @@
-
-
-
 import { createLogger } from '../utils/email.logger.utils';
 
 const logger = createLogger('cors');
@@ -62,6 +59,8 @@ class CORSManager {
         'X-Requested-With',
         'X-Idempotency-Key',
         'X-Correlation-Id',
+        'Idempotency-Key',        // Mixed case version
+        'idempotency-key',        //  // Lowercase version (what browsers send)
         'Accept',
         'Origin',
       ],
@@ -88,11 +87,18 @@ class CORSManager {
    * Convenience for strict endpoints (sensitive APIs)
    */
   public getStrictCorsConfig(): CorsConfig {
-    return {
+     return {
       origin: this.originValidator.bind(this),
       credentials: true,
       methods: ['POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Idempotency-Key', 'X-Correlation-Id'],
+      allowedHeaders: [
+        'Content-Type',
+        'Authorization',
+        'X-Idempotency-Key',
+        'Idempotency-Key',
+        'idempotency-key',
+        'X-Correlation-Id'
+      ],
       preflightContinue: false,
       optionsSuccessStatus: 204,
     };

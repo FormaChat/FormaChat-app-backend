@@ -81,7 +81,7 @@ class SecurityHeadersManager {
   /**
    * Additional custom headers (set service name here)
    */
-  public getCustomSecurityHeaders(serviceName: string = 'formachat-service') {
+  public getCustomSecurityHeaders(serviceName: string = 'formachat-email-service') {
     return (req: any, res: any, next: any) => {
       res.setHeader('X-Content-Type-Options', 'nosniff');
       res.setHeader('X-Frame-Options', 'DENY');
