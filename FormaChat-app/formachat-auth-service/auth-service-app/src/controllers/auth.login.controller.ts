@@ -125,6 +125,7 @@ export class LoginController {
 
   /**
    * Logout user by revoking refresh token
+   * FIXED: Now handles missing/invalid tokens gracefully
    */
   async logout(req: Request, res: Response) {
     try {
@@ -132,20 +133,35 @@ export class LoginController {
       const ipAddress = req.ip ?? 'unknown';
       const userAgent = req.get('User-Agent') || 'unknown';
 
+      // If no refresh token provided, just return success
+      // Frontend will clear tokens locally
       if (!refreshToken) {
-        return res.status(400).json({
-          success: false,
-          error: 'Refresh token is required'
+        logger.warn('Logout called without refresh token', { ipAddress, userAgent });
+        return res.json({
+          success: true,
+          message: 'Logged out successfully (no token provided)'
         });
       }
 
-      await sessionService.revokeCurrentSession(refreshToken, {
-        ipAddress,
-        userAgent
-      });
+      // Try to revoke the session, but don't fail if token is invalid
+      try {
+        await sessionService.revokeCurrentSession(refreshToken, {
+          ipAddress,
+          userAgent
+        });
+        
+        logger.info('User logged out successfully', { ipAddress });
+      } catch (revokeError: any) {
+        // Log the error but still return success
+        // This handles cases where token is already expired/invalid
+        logger.warn('Session revocation failed (token may be expired)', {
+          error: revokeError.message,
+          ipAddress,
+          userAgent
+        });
+      }
 
-      logger.info('User logged out successfully', { ipAddress });
-
+      // Always return success - logout is idempotent
       res.json({
         success: true,
         message: 'Logged out successfully'
@@ -154,9 +170,11 @@ export class LoginController {
     } catch (error: any) {
       logger.error('Logout error:', error);
       
-      res.status(500).json({
-        success: false,
-        error: 'Logout failed'
+      // Even on error, return success for logout
+      // The important thing is that frontend clears tokens
+      res.json({
+        success: true,
+        message: 'Logged out successfully'
       });
     }
   }
