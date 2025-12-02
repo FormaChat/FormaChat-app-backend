@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body { 
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      font-family: Arial, sans-serif;
       line-height: 1.6; 
       color: #333;
       margin: 0;
       padding: 0;
-      background-color: #f4f4f4;
+      background-color: #f5f5f5;
     }
     .container { 
       max-width: 600px; 
@@ -18,87 +18,62 @@
       background: #ffffff;
       border-radius: 8px;
       overflow: hidden;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
     .header { 
-      background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);
+      background: #007bff;
       color: white; 
-      padding: 40px 30px; 
+      padding: 30px; 
       text-align: center;
     }
     .header h1 {
       margin: 0;
-      font-size: 28px;
-      font-weight: 600;
+      font-size: 24px;
     }
     .content { 
-      padding: 40px 30px;
-      background: #ffffff;
+      padding: 30px;
     }
     .content p {
-      margin: 0 0 20px 0;
-      font-size: 16px;
-    }
-    .cta-container {
-      text-align: center;
-      margin: 30px 0;
+      margin: 0 0 15px 0;
+      font-size: 15px;
     }
     .button { 
       display: inline-block; 
-      padding: 14px 32px; 
-      background: #7c3aed;
-      color: white !important;
+      padding: 12px 30px; 
+      background: #007bff;
+      color: white;
       text-decoration: none; 
-      border-radius: 6px;
-      font-weight: 600;
-      font-size: 16px;
-      transition: background 0.3s ease;
-    }
-    .button:hover {
-      background: #6d28d9;
-    }
-    .support {
-      margin-top: 30px;
-      padding-top: 20px;
-      border-top: 1px solid #e5e7eb;
-      font-size: 14px;
-      color: #666;
+      border-radius: 5px;
+      margin: 20px 0;
     }
     .footer { 
       text-align: center; 
-      padding: 20px 30px; 
-      background: #f9fafb;
-      color: #6b7280; 
-      font-size: 13px;
-      border-top: 1px solid #e5e7eb;
-    }
-    .footer p {
-      margin: 5px 0;
+      padding: 20px; 
+      background: #f9f9f9;
+      color: #666; 
+      font-size: 12px;
     }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h1>Will insert our logo</h1>
+      <h1>FormaChat</h1>
     </div>
     
     <div class="content">
-      <p>Hey {{firstName}},</p>
+      <p>Hello {{firstName}},</p>
       
-      <p>Your FormaChat account is all set! You can now build AI-powered support agents that handle customer inquiries, bookings, and questions for your business — 24/7.</p>
+      <p>Welcome to FormaChat! Your account has been created successfully.</p>
       
-      <p>Ready to create your first bot? Just log in and hit "Create Bot" to get started.</p>
+      <p>You can now access your dashboard and start building AI-powered customer support for your business.</p>
       
-      <div class="cta-container">
+      <div style="text-align: center;">
         <a href="https://formachat.com/dashboard" class="button">Go to Dashboard</a>
       </div>
       
-      <div class="support">
-        <p>Need help? Reach out anytime at <a href="mailto:support@formachat.com" style="color: #7c3aed; text-decoration: none;">support@formachat.com</a></p>
-      </div>
+      <p>If you have any questions, contact us at support@formachat.com</p>
       
-      <p style="margin-top: 30px;">The FormaChat Team</p>
+      <p>Best regards,<br>The FormaChat Team</p>
     </div>
     
     <div class="footer">

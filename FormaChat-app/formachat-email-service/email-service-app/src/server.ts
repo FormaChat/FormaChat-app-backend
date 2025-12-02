@@ -3,6 +3,7 @@ import { connectRabbitMQ } from './config/email.rabbitmq';
 import { logger } from './utils/email.logger.utils';
 import { startAuthEmailConsumer } from './events/consumers/auth.email.consumer';
 
+
 const PORT = process.env.PORT || 3001;
 
 async function startServer() {

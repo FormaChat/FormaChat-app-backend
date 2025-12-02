@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body { 
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      font-family: Arial, sans-serif;
       line-height: 1.6; 
       color: #333;
       margin: 0;
       padding: 0;
-      background-color: #f4f4f4;
+      background-color: #f5f5f5;
     }
     .container { 
       max-width: 600px; 
@@ -18,10 +18,9 @@
       background: #ffffff;
       border-radius: 8px;
       overflow: hidden;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
     .header { 
-      background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);
+      background: #007bff;
       color: white; 
       padding: 30px; 
       text-align: center;
@@ -29,80 +28,62 @@
     .header h1 {
       margin: 0;
       font-size: 24px;
-      font-weight: 600;
     }
     .content { 
-      padding: 40px 30px;
-      background: #ffffff;
-      text-align: center;
+      padding: 30px;
     }
     .content p {
-      margin: 0 0 20px 0;
-      font-size: 16px;
-      color: #4b5563;
+      margin: 0 0 15px 0;
+      font-size: 15px;
     }
-    .otp-code { 
-      font-size: 42px;
-      letter-spacing: 12px;
-      font-weight: 700;
-      color: #7c3aed;
-      margin: 30px 0;
-      padding: 25px;
-      background: #f3f4f6;
-      border-radius: 8px;
-      border: 2px dashed #7c3aed;
-      display: inline-block;
+    .otp-box {
+      background: #f0f0f0;
+      border: 2px solid #007bff;
+      border-radius: 5px;
+      padding: 20px;
+      text-align: center;
+      margin: 25px 0;
     }
-    .warning { 
-      background: #fef3c7;
-      border-left: 4px solid #f59e0b;
-      padding: 16px 20px;
-      border-radius: 6px;
-      margin: 30px 0;
-      text-align: left;
-    }
-    .warning p {
-      margin: 8px 0;
-      font-size: 14px;
-      color: #92400e;
-    }
-    .warning p:first-child {
-      font-weight: 600;
+    .otp-code {
+      font-size: 32px;
+      font-weight: bold;
+      letter-spacing: 5px;
+      color: #007bff;
     }
     .footer { 
       text-align: center; 
-      padding: 20px 30px; 
-      background: #f9fafb;
-      color: #6b7280; 
-      font-size: 13px;
-      border-top: 1px solid #e5e7eb;
-    }
-    .footer p {
-      margin: 5px 0;
+      padding: 20px; 
+      background: #f9f9f9;
+      color: #666; 
+      font-size: 12px;
     }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h1>{{subject}}</h1>
+      <h1>FormaChat</h1>
     </div>
     
     <div class="content">
-      <p>Use the verification code below to {{message}}:</p>
+      <p>Hello {{firstName}},</p>
       
-      <div class="otp-code">{{otp}}</div>
+      <p>Please use the verification code below to verify your email address:</p>
       
-      <div class="warning">
-        <p>⚠️ This code expires in 10 minutes</p>
-        <p>For your security, never share this code with anyone — not even FormaChat support.</p>
+      <div class="otp-box">
+        <div class="otp-code">{{otp}}</div>
       </div>
-
-      <p style="margin-top: 30px; color: #6b7280; font-size: 14px;">If you didn't request this code, you can safely ignore this email.</p>
+      
+      <p>This code will expire in <strong>{{expiryMinutes}} minutes</strong>.</p>
+      
+      <p>If you didn't request this code, please ignore this email.</p>
+      
+      <p>Best regards,<br>The FormaChat Team</p>
     </div>
     
     <div class="footer">
       <p>&copy; {{currentYear}} FormaChat. All rights reserved.</p>
+      <p>For security, never share this code with anyone.</p>
     </div>
   </div>
 </body>
