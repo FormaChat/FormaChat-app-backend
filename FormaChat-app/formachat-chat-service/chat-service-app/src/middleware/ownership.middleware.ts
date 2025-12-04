@@ -93,7 +93,7 @@ export const ownershipMiddleware = async (
     // Business Service will check if user owns this business
     try {
       const response = await axios.get(
-        `${businessServiceUrl}/api/businesses/${businessId}`,
+        `${businessServiceUrl}/businesses/${businessId}`,
         {
           headers: {
             'Authorization': req.headers.authorization, // Pass JWT token
