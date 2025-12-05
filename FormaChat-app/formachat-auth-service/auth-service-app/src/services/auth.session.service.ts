@@ -84,7 +84,7 @@ export class SessionService {
         deviceInfo: session.deviceInfo,
         createdAt: session.createdAt,
         expiresAt: session.expiresAt,
-        refreshToken: session.refreshToken // Add this so we can revoke it
+        refreshToken: session.refreshToken
       }));
     } catch (error:any) {
       logger.error('Error getting session info:', error);
@@ -94,10 +94,11 @@ export class SessionService {
 
   /**
    * Refresh session (get new access token using refresh token)
+   * 🔥 FIXED: Proper token rotation without race conditions
    */
   async refreshSession(refreshToken: string, deviceInfo: { userAgent: string; ipAddress: string }): Promise<{ accessToken: string; newRefreshToken?: string }> {
     try {
-      // Verify refresh token
+      // 1. Verify the current refresh token FIRST
       const verification = await tokenService.verifyRefreshToken(refreshToken);
 
       logger.info('Refresh token verification result', { 
@@ -112,13 +113,22 @@ export class SessionService {
 
       const { userId, email } = verification.payload;
 
-      // Generate new access token
+      // 2. Generate new tokens
       const accessToken = await tokenService.generateAccessToken(userId, email);
-
       const newRefreshToken = await tokenService.generateRefreshToken(userId, deviceInfo);
-      await tokenService.revokeRefreshToken(refreshToken);
-      
 
+      // 3. NOW revoke the old token (after new one is created)
+      // This prevents the race condition where token is revoked before client gets new one
+      try {
+        await tokenService.revokeRefreshToken(refreshToken);
+      } catch (revokeError: any) {
+        // Log but don't fail - new token is already created
+        logger.warn('Failed to revoke old refresh token (non-critical)', { 
+          error: revokeError.message 
+        });
+      }
+
+      // 4. Log the successful refresh
       await AuditService.logAuthEvent({
         userId,
         eventType: 'token_refreshed',
@@ -134,6 +144,12 @@ export class SessionService {
         message: error.message, 
         stack: error.stack 
       });
+      
+      // Re-throw with original error message for proper handling
+      if (error.message === 'INVALID_REFRESH_TOKEN') {
+        throw error;
+      }
+      
       throw new Error('SESSION_REFRESH_FAILED');
     }
   }
@@ -158,13 +174,13 @@ export class SessionService {
 
   /**
    * Revoking all existing sessions to ensure single session of users per login 
-  */
+   * 🔥 FIXED: Better error handling
+   */
   async revokeAllUserSessions(
     userId: string, 
     context: { ipAddress: string; userAgent: string; reason?: string }
   ): Promise<void> {
     try {
-      // 🔥 FIX: Use token service's bulk revoke instead
       await tokenService.revokeAllUserTokens(userId);
       
       logger.info('All user sessions revoked', { 
@@ -176,8 +192,7 @@ export class SessionService {
         userId, 
         error: error.message 
       });
-      // 🔥 DON'T throw - just log and continue
-      // Session revocation failure shouldn't block login
+      // Don't throw - session revocation failure shouldn't block login
     }
   }
 }

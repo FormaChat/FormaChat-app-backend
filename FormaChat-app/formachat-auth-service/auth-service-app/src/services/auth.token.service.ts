@@ -52,9 +52,14 @@ export class TokenService {
 
   /**
    * Generate refresh token and store in database
+   * 🔥 FIXED: Only revoke on NEW login, not on token refresh
   */
 
-  async generateRefreshToken(userId: string, deviceInfo: { userAgent: string; ipAddress: string }): Promise<string> {
+  async generateRefreshToken(
+    userId: string, 
+    deviceInfo: { userAgent: string; ipAddress: string },
+    revokeExisting: boolean = false // Only true on new login
+  ): Promise<string> {
     try {
       // Generate secure random token
       const refreshToken = CryptoUtils.generateCryptoString(64);
@@ -64,11 +69,14 @@ export class TokenService {
       const expiresAt = new Date();
       expiresAt.setSeconds(expiresAt.getSeconds() + this.parseJWTExpiry(env.JWT_REFRESH_EXPIRES_IN));
 
-      // Revoke any existing active tokens (single session enforcement)
-      await RefreshTokenModel.updateMany(
-        { userId, isRevoked: false },
-        { isRevoked: true }
-      );
+      // Only revoke existing tokens if explicitly requested (new login)
+      if (revokeExisting) {
+        await RefreshTokenModel.updateMany(
+          { userId, isRevoked: false },
+          { isRevoked: true }
+        );
+        logger.info('Revoked existing tokens for new login', { userId });
+      }
 
       // Store new refresh token
       await RefreshTokenModel.create({
@@ -91,12 +99,18 @@ export class TokenService {
 
   /**
    * Generate both access and refresh tokens
+   * 🔥 FIXED: Pass revokeExisting flag
   */
 
-  async generateTokenPair(userId: string, email: string, deviceInfo: { userAgent: string; ipAddress: string }): Promise<TokenPair> {
+  async generateTokenPair(
+    userId: string, 
+    email: string, 
+    deviceInfo: { userAgent: string; ipAddress: string },
+    revokeExisting: boolean = true // Default true for new logins
+  ): Promise<TokenPair> {
     const [accessToken, refreshToken] = await Promise.all([
       this.generateAccessToken(userId, email),
-      this.generateRefreshToken(userId, deviceInfo)
+      this.generateRefreshToken(userId, deviceInfo, revokeExisting)
     ]);
 
     return { accessToken, refreshToken };
@@ -124,6 +138,7 @@ export class TokenService {
 
   /**
    * Verify refresh token
+   * 🔥 IMPROVED: Better error logging
   */
 
   async verifyRefreshToken(token: string): Promise<TokenVerificationResult> {
@@ -138,6 +153,9 @@ export class TokenService {
       }).populate('userId');
 
       if (!storedToken) {
+        logger.warn('Refresh token not found or invalid', { 
+          tokenHash: tokenHash.substring(0, 10) + '...' 
+        });
         return { valid: false, error: 'INVALID_REFRESH_TOKEN' };
       }
 
@@ -156,18 +174,23 @@ export class TokenService {
 
   /**
    * Revoke refresh token (logout)
+   * 🔥 IMPROVED: Better error handling
   */
  
   async revokeRefreshToken(token: string): Promise<void> {
     try {
       const tokenHash = await CryptoUtils.hashData(token);
       
-      await RefreshTokenModel.findOneAndUpdate(
-        { tokenHash },
+      const result = await RefreshTokenModel.findOneAndUpdate(
+        { tokenHash, isRevoked: false },
         { isRevoked: true }
       );
 
-      logger.info('Refresh token revoked');
+      if (result) {
+        logger.info('Refresh token revoked successfully');
+      } else {
+        logger.warn('Token already revoked or not found');
+      }
     } catch (error:any) {
       logger.error('Error revoking refresh token:', error);
       throw new Error('TOKEN_REVOCATION_FAILED');
@@ -179,14 +202,16 @@ export class TokenService {
    */
   async revokeAllUserTokens(userId: string): Promise<void> {
     try {
-      await RefreshTokenModel.updateMany(
-        { userId },
+      const result = await RefreshTokenModel.updateMany(
+        { userId, isRevoked: false },
         { isRevoked: true }
       );
 
-      logger.info('All user tokens revoked', { userId });
+      logger.info('All user tokens revoked', { 
+        userId, 
+        count: result.modifiedCount 
+      });
 
-      // TODO: Publish token.revoked event for security monitoring
     } catch (error:any) {
       logger.error('Error revoking all user tokens:', error);
       throw new Error('TOKEN_BULK_REVOCATION_FAILED');
@@ -202,7 +227,7 @@ export class TokenService {
         userId,
         isRevoked: false,
         expiresAt: { $gt: new Date() }
-      }).select('deviceInfo createdAt');
+      }).select('deviceInfo createdAt expiresAt');
     } catch (error:any) {
       logger.error('Error getting active sessions:', error);
       throw new Error('SESSIONS_FETCH_FAILED');

@@ -10,6 +10,8 @@ export class LoginController {
   /**
    * User login with email and password
    */
+  // Only showing the login method - rest of the file stays the same
+
   async login(req: Request, res: Response) {
     try {
       const { email, password } = req.body;
@@ -53,7 +55,6 @@ export class LoginController {
 
       // Email verification check - CRITICAL SECURITY LAYER
       if (!loginResult.user.isVerified) {
-        // Log the attempt without exposing in response
         logger.warn('Login attempt with unverified email', { 
           userId: loginResult.user.id,
           email: loginResult.user.email,
@@ -61,7 +62,6 @@ export class LoginController {
           userAgent
         });
 
-        // Generic response that doesn't reveal the email exists
         return res.status(403).json({
           success: false,
           error: {
@@ -74,14 +74,23 @@ export class LoginController {
         });
       }
 
-      // Revoke all existing sessions before creating new one
-      await sessionService.revokeAllUserSessions(loginResult.user.id, {
-        ipAddress,
-        userAgent,
-        reason: 'New login from different location'
-      });
+      // 🔥 FIXED: Revoke all existing sessions BEFORE creating new one
+      // This ensures clean state
+      try {
+        await sessionService.revokeAllUserSessions(loginResult.user.id, {
+          ipAddress,
+          userAgent,
+          reason: 'New login from different location'
+        });
+      } catch (revokeError: any) {
+        // Log but don't block login
+        logger.warn('Failed to revoke old sessions (non-critical)', {
+          error: revokeError.message
+        });
+      }
 
       // Generate tokens for successful login
+      // The createSession will internally call tokenService.generateTokenPair with revokeExisting=true
       const tokens = await sessionService.createSession(
         loginResult.user.id,
         loginResult.user.email,
