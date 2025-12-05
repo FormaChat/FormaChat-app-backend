@@ -115,9 +115,9 @@ export class SessionService {
       // Generate new access token
       const accessToken = await tokenService.generateAccessToken(userId, email);
 
-      // Optionally rotate refresh token (security best practice)
-      // For now, we'll keep the same refresh token
-      // In production, you might want to implement refresh token rotation
+      const newRefreshToken = await tokenService.generateRefreshToken(userId, deviceInfo);
+      await tokenService.revokeRefreshToken(refreshToken);
+      
 
       await AuditService.logAuthEvent({
         userId,
@@ -126,7 +126,9 @@ export class SessionService {
         metadata: deviceInfo
       });
 
-      return { accessToken };
+      logger.info('✅ Session refreshed with new tokens', { userId });
+
+      return { accessToken, newRefreshToken };
     } catch (error:any) {
       logger.error('Error refreshing session:', { 
         message: error.message, 

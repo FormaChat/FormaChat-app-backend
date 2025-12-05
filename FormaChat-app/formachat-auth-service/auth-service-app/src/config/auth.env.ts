@@ -52,7 +52,6 @@ export const env = cleanEnv(process.env, {
   BCRYPT_ROUNDS: num({ default: 12 }),
 
   // CORS
-  CORS_ORIGIN: str({ default: 'http://localhost:3000,http://localhost:3001' }),
   CORS_CREDENTIALS: bool({ default: true }),
 
   // HELMENT
@@ -123,7 +122,7 @@ export const isDevelopment = env.NODE_ENV === 'development';
 export const isProduction = env.NODE_ENV === 'production';
 export const isTest = env.NODE_ENV === 'test';
 
-export const corsOrigins = env.CORS_ORIGIN.split(',').map(o => o.trim());
+
 
 export const mongoOptions = {
   dbName: env.MONGODB_DB_NAME,

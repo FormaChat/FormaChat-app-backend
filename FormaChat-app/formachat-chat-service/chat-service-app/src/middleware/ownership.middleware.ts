@@ -98,8 +98,19 @@ export const ownershipMiddleware = async (
       businessServiceUrl,
       businessId,
       userId: req.user.userId,
-      authorization: req.headers.authorization ? 'present' : 'missing'
+      authorization: req.headers.authorization ? 'present' : 'missing',
+      authHeaderValue: req.headers.authorization?.substring(0, 20) + '...'
     });
+
+    if (!req.headers.authorization) {
+      logger.error('[Ownership] No authorization header in request!');
+      res.status(401).json({
+        error: 'Authentication required',
+        message: 'Authorization header missing',
+        code: 'NO_AUTH_HEADER'
+      });
+      return;
+    }
     
     try {
       const response = await axios.get(
@@ -252,126 +263,5 @@ export const ownershipMiddleware = async (
   }
 };
 
-/**
- * ========================================
- * OPTIONAL: LIGHTWEIGHT OWNERSHIP CHECK
- * ========================================
- * 
- * For endpoints that don't need full business details,
- * just need to verify ownership quickly.
- * 
- * Uses a dedicated internal endpoint in Business Service:
- * GET /internal/businesses/:id/ownership-check
- * 
- * This is faster than fetching full business details
-*/
-
-// export const lightweightOwnershipMiddleware = async (
-//   req: AuthenticatedRequest,
-//   res: Response,
-//   next: NextFunction
-// ): Promise<void> => {
-//   try {
-//     if (!req.user || !req.user.userId) {
-//       res.status(401).json({
-//         error: 'Authentication required',
-//         message: 'User must be authenticated to access this resource'
-//       });
-//       return;
-//     }
-
-//     const businessId = req.params.businessId;
-
-//     if (!businessId || !businessId.match(/^[0-9a-fA-F]{24}$/)) {
-//       res.status(400).json({
-//         error: 'Invalid business ID',
-//         message: 'Business ID is required and must be valid'
-//       });
-//       return;
-//     }
-
-//     const businessServiceUrl = env.BUSINESS_SERVICE_URL;
-//     const internalSecret = env.INTERNAL_SERVICE_SECRET;
-
-//     if (!businessServiceUrl || !internalSecret) {
-//       logger.error('[Ownership] Service configuration missing');
-//       res.status(500).json({
-//         error: 'Service configuration error',
-//         message: 'Business service connection not configured'
-//       });
-//       return;
-//     }
-
-//     try {
-//       // Call internal endpoint (faster, no full business data)
-//       const response = await axios.post(
-//         `${businessServiceUrl}/internal/businesses/${businessId}/ownership-check`,
-//         {
-//           userId: req.user.userId
-//         },
-//         {
-//           headers: {
-//             'x-service-token': internalSecret,
-//             'Content-Type': 'application/json'
-//           },
-//           timeout: 3000
-//         }
-//       );
-
-//       if (response.data.isOwner) {
-//         logger.info(`[Ownership] ✓ Lightweight check passed for user ${req.user.userId}`);
-//         next();
-//       } else {
-//         res.status(403).json({
-//           error: 'Access denied',
-//           message: 'You do not own this business'
-//         });
-//       }
-
-//     } catch (error: any) {
-//       if (axios.isAxiosError(error) && error.response?.status === 404) {
-//         res.status(404).json({
-//           error: 'Business not found',
-//           message: 'The requested business does not exist'
-//         });
-//         return;
-//       }
-
-//       throw error;
-//     }
-
-//   } catch (error: any) {
-//     logger.error('[Ownership] Lightweight check error:', error.message);
-//     res.status(500).json({
-//       error: 'Internal server error',
-//       message: 'Failed to verify business ownership'
-//     });
-//   }
-// };
-
-/**
- * ========================================
- * USAGE EXAMPLES
- * ========================================
- * 
- * // Standard ownership check (most common)
- * router.get(
- *   '/business/:businessId/sessions',
- *   authMiddleware,
- *   ownershipMiddleware,  // ← Verifies via Business Service API
- *   getSessionsController
- * );
- * 
- * // Lightweight check (for endpoints that just need yes/no)
- * router.get(
- *   '/business/:businessId/stats',
- *   authMiddleware,
- *   lightweightOwnershipMiddleware,
- *   getStatsController
- * );
- * 
- * // In controller, access optional business info:
- * const businessInfo = req.businessInfo; // { businessId, businessName, isActive }
- */
 
 export default ownershipMiddleware
