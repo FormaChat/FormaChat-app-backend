@@ -4,18 +4,7 @@ import { authMiddleware } from '../middleware/auth.middleware';
 import { ownershipMiddleware } from '../middleware/ownership.middleware';
 import { internalMiddleware } from '../middleware/internal.middleware';
 
-/**
- * ========================================
- * CHAT SERVICE ROUTES
- * ========================================
- * 
- * Route Structure:
- * 1. Public Routes (End User Chat) - No authentication
- * 2. Protected Routes (Business Owner Dashboard) - Auth + Ownership
- * 3. Internal Routes (Cron Jobs) - Internal service secret
- * 
- * Base Path: /api/chat (registered in main app)
- */
+
 
 const router: Router = Router();
 

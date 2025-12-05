@@ -91,9 +91,19 @@ export const ownershipMiddleware = async (
 
     // 5. CALL BUSINESS SERVICE API TO VERIFY OWNERSHIP
     // Business Service will check if user owns this business
+    const fullUrl = `${businessServiceUrl}/businesses/${businessId}`;
+
+    logger.info('[Ownership] Calling Business Service', {
+      fullUrl,
+      businessServiceUrl,
+      businessId,
+      userId: req.user.userId,
+      authorization: req.headers.authorization ? 'present' : 'missing'
+    });
+    
     try {
       const response = await axios.get(
-        `${businessServiceUrl}/businesses/${businessId}`,
+        fullUrl,
         {
           headers: {
             'Authorization': req.headers.authorization, // Pass JWT token
@@ -110,11 +120,11 @@ export const ownershipMiddleware = async (
       // 3. User owns this business (verified by Business Service's ownershipMiddleware)
 
       // Optional: Attach business info to request if needed
-      if (response.data && response.data.business) {
+      if (response.data && response.data.data) {
         (req as any).businessInfo = {
-          businessId: response.data.business._id,
-          businessName: response.data.business.basicInfo?.businessName,
-          isActive: response.data.business.isActive
+          businessId: response.data.data._id,
+          businessName: response.data.data.basicInfo?.businessName,
+          isActive: response.data.data.isActive
         };
       }
 
@@ -253,91 +263,91 @@ export const ownershipMiddleware = async (
  * Uses a dedicated internal endpoint in Business Service:
  * GET /internal/businesses/:id/ownership-check
  * 
- * This is faster than fetching full business details.
- */
+ * This is faster than fetching full business details
+*/
 
-export const lightweightOwnershipMiddleware = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
-  try {
-    if (!req.user || !req.user.userId) {
-      res.status(401).json({
-        error: 'Authentication required',
-        message: 'User must be authenticated to access this resource'
-      });
-      return;
-    }
+// export const lightweightOwnershipMiddleware = async (
+//   req: AuthenticatedRequest,
+//   res: Response,
+//   next: NextFunction
+// ): Promise<void> => {
+//   try {
+//     if (!req.user || !req.user.userId) {
+//       res.status(401).json({
+//         error: 'Authentication required',
+//         message: 'User must be authenticated to access this resource'
+//       });
+//       return;
+//     }
 
-    const businessId = req.params.businessId;
+//     const businessId = req.params.businessId;
 
-    if (!businessId || !businessId.match(/^[0-9a-fA-F]{24}$/)) {
-      res.status(400).json({
-        error: 'Invalid business ID',
-        message: 'Business ID is required and must be valid'
-      });
-      return;
-    }
+//     if (!businessId || !businessId.match(/^[0-9a-fA-F]{24}$/)) {
+//       res.status(400).json({
+//         error: 'Invalid business ID',
+//         message: 'Business ID is required and must be valid'
+//       });
+//       return;
+//     }
 
-    const businessServiceUrl = env.BUSINESS_SERVICE_URL;
-    const internalSecret = env.INTERNAL_SERVICE_SECRET;
+//     const businessServiceUrl = env.BUSINESS_SERVICE_URL;
+//     const internalSecret = env.INTERNAL_SERVICE_SECRET;
 
-    if (!businessServiceUrl || !internalSecret) {
-      logger.error('[Ownership] Service configuration missing');
-      res.status(500).json({
-        error: 'Service configuration error',
-        message: 'Business service connection not configured'
-      });
-      return;
-    }
+//     if (!businessServiceUrl || !internalSecret) {
+//       logger.error('[Ownership] Service configuration missing');
+//       res.status(500).json({
+//         error: 'Service configuration error',
+//         message: 'Business service connection not configured'
+//       });
+//       return;
+//     }
 
-    try {
-      // Call internal endpoint (faster, no full business data)
-      const response = await axios.post(
-        `${businessServiceUrl}/internal/businesses/${businessId}/ownership-check`,
-        {
-          userId: req.user.userId
-        },
-        {
-          headers: {
-            'x-service-token': internalSecret,
-            'Content-Type': 'application/json'
-          },
-          timeout: 3000
-        }
-      );
+//     try {
+//       // Call internal endpoint (faster, no full business data)
+//       const response = await axios.post(
+//         `${businessServiceUrl}/internal/businesses/${businessId}/ownership-check`,
+//         {
+//           userId: req.user.userId
+//         },
+//         {
+//           headers: {
+//             'x-service-token': internalSecret,
+//             'Content-Type': 'application/json'
+//           },
+//           timeout: 3000
+//         }
+//       );
 
-      if (response.data.isOwner) {
-        logger.info(`[Ownership] ✓ Lightweight check passed for user ${req.user.userId}`);
-        next();
-      } else {
-        res.status(403).json({
-          error: 'Access denied',
-          message: 'You do not own this business'
-        });
-      }
+//       if (response.data.isOwner) {
+//         logger.info(`[Ownership] ✓ Lightweight check passed for user ${req.user.userId}`);
+//         next();
+//       } else {
+//         res.status(403).json({
+//           error: 'Access denied',
+//           message: 'You do not own this business'
+//         });
+//       }
 
-    } catch (error: any) {
-      if (axios.isAxiosError(error) && error.response?.status === 404) {
-        res.status(404).json({
-          error: 'Business not found',
-          message: 'The requested business does not exist'
-        });
-        return;
-      }
+//     } catch (error: any) {
+//       if (axios.isAxiosError(error) && error.response?.status === 404) {
+//         res.status(404).json({
+//           error: 'Business not found',
+//           message: 'The requested business does not exist'
+//         });
+//         return;
+//       }
 
-      throw error;
-    }
+//       throw error;
+//     }
 
-  } catch (error: any) {
-    logger.error('[Ownership] Lightweight check error:', error.message);
-    res.status(500).json({
-      error: 'Internal server error',
-      message: 'Failed to verify business ownership'
-    });
-  }
-};
+//   } catch (error: any) {
+//     logger.error('[Ownership] Lightweight check error:', error.message);
+//     res.status(500).json({
+//       error: 'Internal server error',
+//       message: 'Failed to verify business ownership'
+//     });
+//   }
+// };
 
 /**
  * ========================================
