@@ -1,5 +1,5 @@
 import bcrypt from 'bcrypt';
-import { randomBytes, randomInt } from 'crypto';
+import { randomBytes, randomInt, createHash } from 'crypto';
 import {env} from '../config/auth.env';
 import { createLogger } from './auth.logger.utils';
 
@@ -14,15 +14,34 @@ export class CryptoUtils {
 
   /**
    * Hash data using bcrypt (for passwords)
+   * NON-DETERMINISTIC - Use only for user passwords
   */
 
-  static async hashData(plainText: string): Promise<string> {
+  static async hashSensitive(plainText: string): Promise<string> {
     try {
       const saltRounds = env.BCRYPT_ROUNDS;
       return await bcrypt.hash(plainText, saltRounds);
     } catch (error: any) {
       logger.error("Error hashing data: ", error);
       throw new Error('HASHING_FAILED')
+    }
+  }
+
+  /**
+   * NEW METHOD: Deterministic hash using SHA-256
+   * Use for refresh tokens, session tokens, etc.
+   * DETERMINISTIC - Same input always produces same output
+   * FAST - Suitable for high-frequency operations
+   * SECURE - One-way cryptographic hash
+  */
+  static hashDeterministic(plainText: string): string {
+    try {
+      return createHash('sha256')
+        .update(plainText)
+        .digest('hex');
+    } catch (error: any) {
+      logger.error("Error creating deterministic hash: ", error);
+      throw new Error('DETERMINISTIC_HASH_FAILED');
     }
   }
 
@@ -102,7 +121,8 @@ export class CryptoUtils {
 
 // Export individual functions for convenience
 
-export const hashData = CryptoUtils.hashData;
+export const hashSensitive = CryptoUtils.hashSensitive;
+export const hashDeterministic = CryptoUtils.hashDeterministic; // ✅ NEW EXPORT
 export const compareHash = CryptoUtils.compareHash;
 export const generateSecureRandom = CryptoUtils.generateSecureRandom;
 export const generateUUID = CryptoUtils.generateUUID;

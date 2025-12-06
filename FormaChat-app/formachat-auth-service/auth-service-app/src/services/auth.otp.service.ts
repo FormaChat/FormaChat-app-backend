@@ -50,7 +50,7 @@ export class OTPService {
 
       // Hash OTP for secure storage
 
-      const hashedOTP = await CryptoUtils.hashData(otp);
+      const hashedOTP = await CryptoUtils.hashSensitive(otp);
 
       // Calculate expiration
 

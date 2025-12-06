@@ -16,7 +16,8 @@ export interface SessionInfo {
 
 /**
  * Session service managing user sessions (wrapper around token service)
- */
+*/
+
 export class SessionService {
   /**
    * Create new session (generates tokens)
@@ -35,7 +36,8 @@ export class SessionService {
 
   /**
    * Revoke current session (logout)
-   */
+  */
+
   async revokeCurrentSession(refreshToken: string, metadata: { ipAddress: string; userAgent: string }): Promise<void> {
     try {
       await tokenService.revokeRefreshToken(refreshToken);
@@ -55,7 +57,8 @@ export class SessionService {
 
   /**
    * Revoke all sessions except current (future multi-device support)
-   */
+  */
+
   async revokeAllSessionsExceptCurrent(userId: string, currentRefreshToken: string): Promise<void> {
     try {
       // For now, with single session enforcement, this revokes all sessions
@@ -70,7 +73,8 @@ export class SessionService {
 
   /**
    * Get active session information
-   */
+  */
+
   async getActiveSessionInfo(userId: string): Promise<SessionInfo[]> {
     try {
       const sessions = await tokenService.getActiveSessions(userId);
@@ -94,8 +98,9 @@ export class SessionService {
 
   /**
    * Refresh session (get new access token using refresh token)
-   * 🔥 FIXED: Proper token rotation without race conditions
-   */
+   * FIXED: Proper token rotation without race conditions
+  */
+
   async refreshSession(refreshToken: string, deviceInfo: { userAgent: string; ipAddress: string }): Promise<{ accessToken: string; newRefreshToken?: string }> {
     try {
       // 1. Verify the current refresh token FIRST
@@ -136,7 +141,7 @@ export class SessionService {
         metadata: deviceInfo
       });
 
-      logger.info('✅ Session refreshed with new tokens', { userId });
+      logger.info('Session refreshed with new tokens', { userId });
 
       return { accessToken, newRefreshToken };
     } catch (error:any) {
@@ -156,7 +161,8 @@ export class SessionService {
 
   /**
    * Check if session is valid
-   */
+  */
+
   async validateSession(accessToken: string): Promise<{ valid: boolean; userId?: string }> {
     try {
       const verification = await tokenService.verifyAccessToken(accessToken);
@@ -174,8 +180,8 @@ export class SessionService {
 
   /**
    * Revoking all existing sessions to ensure single session of users per login 
-   * 🔥 FIXED: Better error handling
-   */
+   * FIXED: Better error handling
+  */
   async revokeAllUserSessions(
     userId: string, 
     context: { ipAddress: string; userAgent: string; reason?: string }

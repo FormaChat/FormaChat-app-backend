@@ -28,12 +28,7 @@ export const env = cleanEnv(process.env, {
   PINECONE_ENVIRONMENT: str({ default: 'us-east-1' }),
   PINECONE_INDEX_NAME: str({ default: 'formachat-businesses' }),
 
-  // OpenAI
-  // # OpenAI (DEPRECATED - now using Pinecone Inference)
-  // # OPENAI_API_KEY=sk-...
-  // # OPENAI_EMBEDDING_MODEL=text-embedding-3-small
-  // # OPENAI_MAX_RETRIES=3
-  // # OPENAI_TIMEOUT=30000
+ 
 
   // JWT
   JWT_ACCESS_SECRET: str(),
@@ -52,9 +47,6 @@ export const env = cleanEnv(process.env, {
   // API_KEY_CLOUDINARY: str(),
   // CLOUDINARY_URL: str(),
 
-
-  // CORS
-  CORS_ORIGIN: str({ default: 'http://localhost:3000' }),
 });
 
 // --- Custom Validations ---
@@ -92,7 +84,7 @@ export const isDevelopment = env.NODE_ENV === 'development';
 export const isProduction = env.NODE_ENV === 'production';
 export const isTest = env.NODE_ENV === 'test';
 
-export const corsOrigins = env.CORS_ORIGIN.split(',').map(o => o.trim());
+
 
 export const mongoOptions = {
   dbName: env.MONGODB_DB_NAME,
@@ -116,15 +108,9 @@ export const securityConfig = {
   adminApiKey: env.ADMIN_API_KEY,
 };
 
-// --- JWT Configuration ---
-// Note: Business service doesn't issue JWTs, but needs to validate them
-// We'll get the JWT secret from auth service or use the same secret
-// For now, we'll rely on auth service validation for user endpoints
-// and internal service secret for service-to-service communication
+
 
 export const jwtConfig = {
-  // We don't issue tokens, so we don't need JWT secrets here
-  // Token validation will be done by calling auth service or using shared secret
   issuer: env.SERVICE_NAME,
   audience: 'formachat-platform',
 };
@@ -148,7 +134,7 @@ export const featureFlags = {
   enableAdminDashboard: true,
 };
 
-logger.info(`🚀 ${env.SERVICE_NAME} v${env.SERVICE_VERSION} environment loaded`);
-logger.info(`🌍 NODE_ENV: ${env.NODE_ENV}`);
-logger.info(`🔗 MongoDB: ${env.MONGODB_DB_NAME}`);
-logger.info(`📚 Pinecone: ${env.PINECONE_INDEX_NAME}`);
+logger.info(`${env.SERVICE_NAME} v${env.SERVICE_VERSION} environment loaded`);
+logger.info(`NODE_ENV: ${env.NODE_ENV}`);
+logger.info(`MongoDB: ${env.MONGODB_DB_NAME}`);
+logger.info(`Pinecone: ${env.PINECONE_INDEX_NAME}`);

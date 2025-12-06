@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import { tokenService } from '../services/auth.token.service';
 import { sessionService } from '../services/auth.session.service';
-import { AuditService } from '../services/auth.audit.service';
 import { createLogger } from '../utils/auth.logger.utils';
 
 const logger = createLogger('token-controller');
@@ -28,12 +27,7 @@ export class TokenController {
         userAgent
       });
 
-      // 🔥 TEMPORARY: Log tokens for Postman testing (REMOVE IN PRODUCTION)
-       logger.info('TOKEN REFRESH SUCCESS', {
-        accessToken: result.accessToken,
-        refreshToken: result.newRefreshToken || refreshToken
-      });
-
+     
       res.json({
         success: true,
         data: {
@@ -61,42 +55,6 @@ export class TokenController {
       });
     }
   }
-
-  /**
-   * Revoke refresh token (logout)
-   */
-  // async revokeToken(req: Request, res: Response) {
-  //   try {
-  //     const { refreshToken } = req.body;
-  //     const ipAddress = req.ip ?? 'unknown';
-  //     const userAgent = req.get('User-Agent') || 'unknown';
-
-  //     if (!refreshToken) {
-  //       return res.status(400).json({
-  //         success: false,
-  //         error: 'Refresh token is required'
-  //       });
-  //     }
-
-  //     await sessionService.revokeCurrentSession(refreshToken, {
-  //       ipAddress,
-  //       userAgent
-  //     });
-
-  //     res.json({
-  //       success: true,
-  //       message: 'Logged out successfully'
-  //     });
-
-  //   } catch (error: any) {
-  //     logger.error('Token revocation error:', error);
-      
-  //     res.status(500).json({
-  //       success: false,
-  //       error: 'Failed to logout'
-  //     });
-  //   }
-  // }
 
   /**
    * Validate access token

@@ -85,7 +85,7 @@ export class PasswordService {
   static async hashPassword(plainPassword: string): Promise<string> {
     try {
       logger.debug("Hashing password");
-      return await CryptoUtils.hashData(plainPassword);
+      return await CryptoUtils.hashSensitive(plainPassword);
     } catch (error: any) {
       logger.error('Error hashing password:', error);
       throw new Error("PASSWORD_HASHING_FAILED");

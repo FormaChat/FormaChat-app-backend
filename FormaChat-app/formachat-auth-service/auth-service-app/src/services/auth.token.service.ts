@@ -52,7 +52,8 @@ export class TokenService {
 
   /**
    * Generate refresh token and store in database
-   * 🔥 FIXED: Only revoke on NEW login, not on token refresh
+   * FIXED: Using deterministic SHA-256 hash instead of bcrypt
+   * FIXED: Only revoke on NEW login, not on token refresh
   */
 
   async generateRefreshToken(
@@ -63,7 +64,9 @@ export class TokenService {
     try {
       // Generate secure random token
       const refreshToken = CryptoUtils.generateCryptoString(64);
-      const tokenHash = await CryptoUtils.hashData(refreshToken);
+      
+      // ✅ FIXED: Use deterministic hash (SHA-256) instead of bcrypt
+      const tokenHash = CryptoUtils.hashDeterministic(refreshToken);
 
       // Calculate expiration
       const expiresAt = new Date();
@@ -99,7 +102,7 @@ export class TokenService {
 
   /**
    * Generate both access and refresh tokens
-   * 🔥 FIXED: Pass revokeExisting flag
+   *  FIXED: Pass revokeExisting flag
   */
 
   async generateTokenPair(
@@ -138,19 +141,21 @@ export class TokenService {
 
   /**
    * Verify refresh token
-   * 🔥 IMPROVED: Better error logging
+   * FIXED: Using deterministic SHA-256 hash for lookup
+   * IMPROVED: Better error logging
   */
 
   async verifyRefreshToken(token: string): Promise<TokenVerificationResult> {
     try {
-      const tokenHash = await CryptoUtils.hashData(token);
+      // ✅ FIXED: Use deterministic hash (SHA-256) instead of bcrypt
+      const tokenHash = CryptoUtils.hashDeterministic(token);
 
       // Find valid, non-revoked, non-expired token
       const storedToken = await RefreshTokenModel.findOne({
         tokenHash,
         isRevoked: false,
         expiresAt: { $gt: new Date() }
-      }).populate('userId');
+      }).populate('userId', 'email');
 
       if (!storedToken) {
         logger.warn('Refresh token not found or invalid', { 
@@ -174,12 +179,13 @@ export class TokenService {
 
   /**
    * Revoke refresh token (logout)
-   * 🔥 IMPROVED: Better error handling
+   * IMPROVED: Better error handling
   */
  
   async revokeRefreshToken(token: string): Promise<void> {
     try {
-      const tokenHash = await CryptoUtils.hashData(token);
+      // ✅ FIXED: Use deterministic hash (SHA-256) instead of bcrypt
+      const tokenHash = CryptoUtils.hashDeterministic(token);
       
       const result = await RefreshTokenModel.findOneAndUpdate(
         { tokenHash, isRevoked: false },
