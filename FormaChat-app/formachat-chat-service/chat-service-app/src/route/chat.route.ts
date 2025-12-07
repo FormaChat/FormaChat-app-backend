@@ -100,6 +100,20 @@ router.get(
   chatController.getSessionDetailsController
 );
 
+/**
+ * Get dashboard summary (composite endpoint - ONE ownership check)
+ * GET /api/chat/business/:businessId/dashboard-summary
+ * 
+ * Returns sessions, leads, and analytics in a single request
+ * More efficient than making 3 separate API calls
+ */
+router.get(
+  '/business/:businessId/dashboard-summary',
+  authMiddleware,
+  ownershipMiddleware, // Only ONE ownership check here
+  chatController.getDashboardSummaryController
+);
+
 // ========================================
 // INTERNAL ROUTES (Cron Jobs / Cleanup)
 // ========================================

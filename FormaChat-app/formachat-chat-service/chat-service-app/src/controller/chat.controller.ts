@@ -921,6 +921,124 @@ export const markAbandonedSessionsController = async (
   }
 };
 
+/**
+ * Get dashboard summary (composite endpoint)
+ * 
+ * GET /api/chat/business/:businessId/dashboard-summary
+ * 
+ * Returns business sessions, leads, and analytics in ONE request
+ * Only ONE ownership check is performed
+ * 
+ * Success Response (200):
+ * {
+ *   success: true,
+ *   data: {
+ *     sessions: [...],  // Recent 5 sessions
+ *     leads: [...],     // Recent 5 leads
+ *     analytics: {
+ *       totalSessions: 45,
+ *       activeSessions: 3,
+ *       totalLeads: 12,
+ *       totalMessages: 234,
+ *       conversionRate: 27
+ *     }
+ *   }
+ * }
+ */
+export const getDashboardSummaryController = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { businessId } = req.params;
+
+    // Validation
+    if (!businessId || !businessId.match(/^[0-9a-fA-F]{24}$/)) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_BUSINESS_ID',
+          message: 'Valid Business ID is required'
+        }
+      });
+      return;
+    }
+
+    // Fetch all data in parallel (NO additional ownership checks needed)
+    const [sessionsResult, leadsResult] = await Promise.all([
+      chatService.getSessionsForBusiness({
+        businessId,
+        page: 1,
+        limit: 5
+      }),
+      chatService.getLeadsForBusiness({
+        businessId,
+        page: 1,
+        limit: 5
+      })
+    ]);
+
+    // Handle errors
+    if (!sessionsResult.success || !leadsResult.success) {
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'DASHBOARD_FETCH_FAILED',
+          message: 'Failed to retrieve dashboard data'
+        }
+      });
+      return;
+    }
+
+    // Calculate analytics from the data
+    const sessions = sessionsResult.sessions || [];
+    const leads = leadsResult.leads || [];
+    
+    const activeSessions = sessions.filter(s => s.status === 'active').length;
+    const totalMessages = sessions.reduce((sum: number, s: any) => sum + (s.messageCount || 0), 0);
+    const sessionsWithContact = sessions.filter((s: any) => s.contact?.email || s.contact?.phone).length;
+    const conversionRate = sessions.length > 0 
+      ? Math.round((sessionsWithContact / sessions.length) * 100)
+      : 0;
+
+    // Success - return composite response
+    res.status(200).json({
+      success: true,
+      data: {
+        sessions,
+        leads,
+        analytics: {
+          totalSessions: sessionsResult.pagination?.total || sessions.length,
+          activeSessions,
+          totalLeads: leadsResult.pagination?.total || leads.length,
+          totalMessages,
+          conversionRate
+        }
+      }
+    });
+
+    logger.info('[Controller] Dashboard summary retrieved', {
+      businessId,
+      sessionCount: sessions.length,
+      leadCount: leads.length
+    });
+
+  } catch (error: any) {
+    logger.error('[Controller] Get dashboard summary failed', {
+      message: error.message,
+      businessId: req.params.businessId
+    });
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to retrieve dashboard summary'
+      }
+    });
+  }
+};
+
 // ========================================
 // EXPORTS
 // ========================================
@@ -937,6 +1055,7 @@ export default {
   getSessionsController,
   getLeadsController,
   getSessionDetailsController,
+  getDashboardSummaryController,
 
   // Internal/cron
   deleteOldMessagesController,

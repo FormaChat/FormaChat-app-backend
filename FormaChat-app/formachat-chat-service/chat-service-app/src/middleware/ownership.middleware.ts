@@ -91,7 +91,7 @@ export const ownershipMiddleware = async (
 
     // 5. CALL BUSINESS SERVICE API TO VERIFY OWNERSHIP
     // Business Service will check if user owns this business
-    const fullUrl = `${businessServiceUrl}/businesses/${businessId}`;
+    const fullUrl = `${businessServiceUrl}/api/v1/businesses/${businessId}`;
 
     logger.info('[Ownership] Calling Business Service', {
       fullUrl,
@@ -120,7 +120,7 @@ export const ownershipMiddleware = async (
             'Authorization': req.headers.authorization, // Pass JWT token
             'Content-Type': 'application/json'
           },
-          timeout: 5000 // 5 second timeout
+          timeout: 15000 
         }
       );
 
@@ -202,7 +202,7 @@ export const ownershipMiddleware = async (
         if (error.code === 'ECONNABORTED') {
           logger.error('[Ownership] Business Service request timeout', {
             businessId,
-            timeout: 5000
+            timeout: 15000
           });
 
           res.status(504).json({

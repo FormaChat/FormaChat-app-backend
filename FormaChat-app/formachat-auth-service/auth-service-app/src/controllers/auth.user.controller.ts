@@ -227,6 +227,63 @@ export class UserController {
     }
   }
 
+  // controllers/auth.user.controller.ts (add this method to UserController class)
+
+  /**
+   * Submit user feedback
+   */
+  async submitFeedback(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.userId;
+      const { message } = req.body;
+      const ipAddress = req.ip ?? 'unknown';
+      const userAgent = req.get('User-Agent') || 'unknown';
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: 'Authentication required'
+        });
+      }
+
+      if (!message || message.trim().length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Feedback message is required'
+        });
+      }
+
+      if (message.length > 5000) {
+        return res.status(400).json({
+          success: false,
+          error: 'Feedback message too long (max 5000 characters)'
+        });
+      }
+
+      await userService.submitFeedback(userId, message.trim(), { ipAddress, userAgent });
+
+      res.json({
+        success: true,
+        message: 'Feedback submitted successfully'
+      });
+
+    } catch (error: any) {
+      logger.error('Submit feedback error:', error);
+      
+      if (error.message === 'USER_NOT_FOUND') {
+        return res.status(404).json({
+          success: false,
+          error: 'User not found'
+        });
+      }
+
+      res.status(500).json({
+        success: false,
+        error: 'Failed to submit feedback'
+      });
+    }
+  }
+
   /**
    * Verify user email with OTP
    */

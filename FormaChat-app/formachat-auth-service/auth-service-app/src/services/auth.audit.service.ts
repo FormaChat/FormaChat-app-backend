@@ -18,7 +18,8 @@ export interface AuditEvent {
     | 'otp_failed'
     | 'password_reset'
     | 'token_refreshed'
-    | 'account_deactivated';
+    | 'account_deactivated'
+    | 'feedback_submitted';
   success: boolean;
   metadata: {
     ipAddress: string;
@@ -27,6 +28,7 @@ export interface AuditEvent {
     deviceId?: string;
     reason?: string;
     suspectedAnomaly?: boolean;
+    feedbackLength?: number;
   };
 }
 

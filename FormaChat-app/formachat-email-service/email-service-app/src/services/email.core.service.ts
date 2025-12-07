@@ -4,6 +4,16 @@ import { sendEmail } from '../providers/email.provider';
 import { getOTPFromAuth } from '../utils/auth.api.utils';
 import { templateService } from './template.service';
 
+export interface FeedbackEmailParams {
+  email: string;
+  firstName: string;
+  lastName: string;
+  userId: string;
+  feedbackMessage: string;
+  timestamp: string;
+  userAgent: string;
+  ipAddress: string;
+}
 
 export interface WelcomeEmailParams {
   email: string;
@@ -55,6 +65,41 @@ export class EmailCoreService {
       throw error;
     }
   }
+
+  /**
+   * Send feedback email to support team
+   */
+  async sendFeedbackEmail(params: FeedbackEmailParams): Promise<void> {
+  try {
+    logger.info('Sending feedback email to support', { 
+      from: params.email,
+      userId: params.userId 
+    });
+
+    const subject = `Feedback from ${params.firstName} ${params.lastName}`;
+    const html = this.renderFeedbackTemplate(params);
+    
+    await sendEmail({
+      to: 'support@formachat.com',
+      subject,
+      html,
+      from: 'noreply@formachat.com',
+      replyTo: params.email // ← ADD THIS - allows direct reply to user
+    });
+
+    logger.info('Feedback email sent successfully to support', { 
+      from: params.email,
+      userId: params.userId 
+    });
+  } catch (error: any) {
+    logger.error('Failed to send feedback email', {
+      email: params.email,
+      userId: params.userId,
+      error: error.message
+    });
+    throw error;
+  }
+}
 
   /**
    * Send OTP email - fetches OTP from Auth service
@@ -185,6 +230,133 @@ export class EmailCoreService {
       deactivatedAt: params.deactivatedAt,
       reason: params.reason
     });
+  }
+
+  private renderFeedbackTemplate(params: FeedbackEmailParams): string {
+  const formattedDate = new Date(params.timestamp).toLocaleString('en-US', {
+    dateStyle: 'full',
+    timeStyle: 'long'
+  });
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6; 
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+          }
+          .container { 
+            max-width: 600px; 
+            margin: 20px auto; 
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+          }
+          .header { 
+            background: linear-gradient(135deg, #636b2f 0%, #4f5625 100%);
+            color: white; 
+            padding: 30px 20px;
+            text-align: center;
+          }
+          .header h2 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+          }
+          .content { 
+            padding: 30px;
+          }
+          .info-section {
+            background: #f9fafb;
+            border-left: 4px solid #636b2f;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+          }
+          .info-section p {
+            margin: 8px 0;
+          }
+          .label {
+            font-weight: 600;
+            color: #636b2f;
+          }
+          .message-box { 
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 20px 0;
+          }
+          .message-box h3 {
+            margin-top: 0;
+            color: #1a1a1a;
+            font-size: 16px;
+          }
+          .message-content {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            color: #374151;
+            line-height: 1.7;
+          }
+          .metadata { 
+            font-size: 13px; 
+            color: #6b7280;
+            margin-top: 25px; 
+            padding-top: 20px; 
+            border-top: 1px solid #e5e7eb;
+          }
+          .metadata p {
+            margin: 6px 0;
+          }
+          .reply-note {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 12px;
+            margin: 20px 0;
+            border-radius: 4px;
+            font-size: 14px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h2>📬 New Feedback Received</h2>
+          </div>
+          <div class="content">
+            <div class="info-section">
+              <p><span class="label">From:</span> ${params.firstName} ${params.lastName}</p>
+              <p><span class="label">Email:</span> ${params.email}</p>
+              <p><span class="label">User ID:</span> ${params.userId}</p>
+              <p><span class="label">Submitted:</span> ${formattedDate}</p>
+            </div>
+            
+            <div class="reply-note">
+              💡 <strong>Reply directly to this email</strong> to respond to the user at ${params.email}
+            </div>
+            
+            <div class="message-box">
+              <h3>Feedback Message:</h3>
+              <div class="message-content">${params.feedbackMessage.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+            </div>
+            
+            <div class="metadata">
+              <p><strong>Technical Details:</strong></p>
+              <p>IP Address: ${params.ipAddress}</p>
+              <p>User Agent: ${params.userAgent}</p>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
   }
 }
 

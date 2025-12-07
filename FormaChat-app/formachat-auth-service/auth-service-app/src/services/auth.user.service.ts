@@ -4,7 +4,7 @@ import { AuditService } from './auth.audit.service';
 import { createLogger } from '../utils/auth.logger.utils';
 
 // producers
-import { publishUserCreated, publishPasswordChanged, publishUserDeactivated  } from '../events/producers';
+import { publishUserCreated, publishPasswordChanged, publishUserDeactivated, publishFeedbackSubmitted  } from '../events/producers';
 
 
 
@@ -429,6 +429,52 @@ export class UserService {
     }
 
     await user.save();
+  }
+
+  // services/auth.user.service.ts (add this method to UserService class)
+
+  /**
+   * Submit user feedback
+   */
+  async submitFeedback(
+    userId: string, 
+    feedbackMessage: string, 
+    metadata: { ipAddress: string; userAgent: string }
+  ): Promise<void> {
+    try {
+      const user = await UserModel.findById(userId);
+      if (!user) {
+        throw new Error('USER_NOT_FOUND');
+      }
+
+      await AuditService.logAuthEvent({
+        userId: user._id.toString(),
+        eventType: 'feedback_submitted',
+        success: true,
+        metadata: {
+          ipAddress: metadata.ipAddress,
+          userAgent: metadata.userAgent,
+          feedbackLength: feedbackMessage.length
+        }
+      });
+
+      // Publish feedback event to email service
+      await publishFeedbackSubmitted({
+        userId: user._id.toString(),
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        feedbackMessage,
+        timestamp: new Date().toISOString(),
+        userAgent: metadata.userAgent,
+        ipAddress: metadata.ipAddress
+      });
+
+      logger.info('User feedback submitted', { userId });
+    } catch (error: any) {
+      logger.error('Error submitting feedback:', error);
+      throw error;
+    }
   }
 
   /**

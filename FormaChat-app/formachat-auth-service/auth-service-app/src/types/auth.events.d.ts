@@ -137,3 +137,16 @@ export enum EmailStatus {
   BOUNCED = 'bounced',
   PENDING = 'pending'
 }
+
+// types/auth.events.d.ts (add this interface)
+
+export interface FeedbackSubmittedEventData {
+  userId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  feedbackMessage: string;
+  timestamp: string;
+  userAgent: string;
+  ipAddress: string;
+}

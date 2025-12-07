@@ -24,7 +24,7 @@ interface RabbitMQMessage {
 /**
  * Valid email types that can be sent
  */
-type EmailType = 'otp' | 'password_reset' | 'password_changed' | 'welcome' | 'account_deactivated';
+type EmailType = 'otp' | 'password_reset' | 'password_changed' | 'welcome' | 'account_deactivated' | 'feedback';
 
 
 
@@ -98,7 +98,7 @@ export async function startAuthEmailConsumer(): Promise<void> {
     
     // Consume from user.deactivated queue
     await consumeMessages('authUserDeactivated', handleUserDeactivated);
-
+    await consumeMessages('authFeedbackSubmitted', handleFeedbackSubmitted);
     logger.info('✅ All Auth email consumers started successfully');
   } catch (error: any) {
     logger.error('❌ Failed to start Auth email consumers:', error);
@@ -351,6 +351,50 @@ async function handleUserDeactivated(message: RabbitMQMessage): Promise<void> {
     logger.info('✅ Account deactivated email sent successfully', {
       eventId,
       email: data.email,
+      retryCount
+    });
+  });
+}
+
+async function handleFeedbackSubmitted(message: RabbitMQMessage): Promise<void> {
+  await handleWithRetry(message, 'feedback', async (msg) => {
+    const { eventId, data } = msg;
+    const retryCount = msg.retryCount || 0;
+    
+    logger.info('Processing feedback.submitted event', {
+      eventId,
+      userId: data.userId,
+      email: data.email,
+      retryCount
+    });
+
+    // Send feedback email to support
+    await emailCoreService.sendFeedbackEmail({
+      email: data.email,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      userId: data.userId,
+      feedbackMessage: data.feedbackMessage,
+      timestamp: data.timestamp,
+      userAgent: data.userAgent,
+      ipAddress: data.ipAddress
+    });
+
+    // Publish success status back to Auth
+    await publishEmailResponse(
+      createSuccessResponse(
+        eventId,
+        data.userId,
+        data.email,
+        'feedback',
+        'smtp'
+      )
+    );
+
+    logger.info('✅ Feedback email sent successfully to support', {
+      eventId,
+      from: data.email,
+      userId: data.userId,
       retryCount
     });
   });

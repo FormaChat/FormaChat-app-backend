@@ -34,6 +34,13 @@ export const registerSchema = z.object({
 
 });
 
+export const submitFeedbackSchema = z.object({
+  message: z
+    .string()
+    .min(10, 'Feedback message must be at least 10 characters')
+    .max(5000, 'Feedback message must not exceed 5000 characters')
+});
+
 export const loginSchema = z.object({
   email: z.string()
     .min(1, 'Email is required')
@@ -135,6 +142,8 @@ export const deleteAccountSchema = z.object({
   password: z.string()
     .min(1, 'Password is required for account deletion')
 });
+
+
 
 export const changePasswordSchema = z.object({
   currentPassword: z.string()

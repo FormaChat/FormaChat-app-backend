@@ -25,6 +25,7 @@ class RabbitMQConnection {
     otpGenerated: 'auth.otp.generated',
     passwordChanged: 'auth.password.changed',
     userDeactivated: 'auth.user.deactivated',
+    feedbackSubmitted: 'auth.feedback.submitted',
 
     // Consumer queue recieveing message from email service
     emailResponse: 'auth.email.response'
@@ -36,6 +37,7 @@ class RabbitMQConnection {
     otpGenerated: 'otp.generated',
     passwordChanged: 'password.changed',
     userDeactivated: 'user.deactivated',
+    feedbackSubmitted: 'feedback.submitted',
 
     //consumer routing keys
     emailResponse: 'email.response'
@@ -158,6 +160,11 @@ class RabbitMQConnection {
     // User deactivated queue
     await this.channel.assertQueue(this.queues.userDeactivated, options);
     await this.channel.bindQueue(this.queues.userDeactivated, this.exchanges.email, this.routingKeys.userDeactivated);
+  
+    // Feedback submitted queue
+    await this.channel.assertQueue(this.queues.feedbackSubmitted, options);
+    await this.channel.bindQueue(this.queues.feedbackSubmitted, this.exchanges.email, this.routingKeys.feedbackSubmitted);
+
   }
 
 
@@ -220,7 +227,7 @@ class RabbitMQConnection {
 
     try {
       const published = this.channel.publish(
-        this.exchanges.email,
+        this.email.exchange,
         this.routingKeys[routingKey],
         Buffer.from(JSON.stringify(message)),
         { persistent: options.persistent ?? true, priority: options.priority ?? 0 }

@@ -71,7 +71,8 @@ export interface IAuthLog extends Document {
     | 'otp_failed'
     | 'password_reset'
     | 'token_refreshed'
-    | 'account_deactivated';
+    | 'account_deactivated'
+    | 'feedback_submitted';
   success: boolean;
   metadata: {
     ipAddress: string;
@@ -269,7 +270,8 @@ const AuthLogSchema: Schema<IAuthLog> = new Schema({
       'otp_failed',
       'password_reset',
       'token_refreshed',
-      'account_deactivated'
+      'account_deactivated',
+      'feedback_submitted'
     ],
     required: true 
   },

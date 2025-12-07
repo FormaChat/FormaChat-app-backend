@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { userController } from '../controllers/auth.user.controller';
 import { asyncHandler } from '../middleware/auth.errorHandler.middleware';
-import { validateRequest } from '../middleware/auth.validation.middleware';
+import { validateRequest, submitFeedbackSchema } from '../middleware/auth.validation.middleware';
 import { updateProfileSchema, deleteAccountSchema } from '../middleware/auth.validation.middleware';
 import { jwtMiddleware } from '../middleware/auth.jwt.middleware';
 import { idempotencyMiddleware } from '../middleware/auth.idempotency.middleware';
@@ -42,6 +42,14 @@ router.get(
   loggerMiddleware,
   jwtMiddleware,
   asyncHandler(userController.getSessions)
+);
+
+router.post(
+  '/feedback',
+  loggerMiddleware,
+  jwtMiddleware,
+  validateRequest(submitFeedbackSchema),
+  asyncHandler(userController.submitFeedback)
 );
 
 export default router;

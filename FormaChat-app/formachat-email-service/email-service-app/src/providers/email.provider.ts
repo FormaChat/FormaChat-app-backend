@@ -9,6 +9,7 @@ interface EmailOptions {
   subject: string;
   html: string;
   from?: string;
+  replyTo?: string;
 }
 
 // Validate configuration on startup
@@ -25,18 +26,25 @@ function validateEmailOptions({ to, subject, html }: EmailOptions): void {
   }
 }
 
-export async function sendEmail({ to, subject, html, from }: EmailOptions): Promise<string> {
+export async function sendEmail({ to, subject, html, from, replyTo }: EmailOptions): Promise<string> {
   try {
     validateEmailOptions({ to, subject, html });
     
     logger.info('📨 Attempting to send email via Resend', { to, subject });
 
-    const response = await resend.emails.send({
-      from: defaultFrom,
+    const emailPayload: any = {
+      from: from || defaultFrom,
       to,
       subject,
       html,
-    });
+    };
+
+    // ← ADD THIS
+    if (replyTo) {
+      emailPayload.reply_to = replyTo;
+    }
+
+    const response = await resend.emails.send(emailPayload);
 
     if (response.error) {
       throw new Error(`Resend API error: ${response.error.message}`);
@@ -48,6 +56,7 @@ export async function sendEmail({ to, subject, html, from }: EmailOptions): Prom
       to,
       subject,
       id: emailId,
+      replyTo: replyTo || 'none'
     });
 
     return emailId;
