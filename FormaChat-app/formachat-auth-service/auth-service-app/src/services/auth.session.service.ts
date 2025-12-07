@@ -120,7 +120,7 @@ export class SessionService {
 
       // 2. Generate new tokens
       const accessToken = await tokenService.generateAccessToken(userId, email);
-      const newRefreshToken = await tokenService.generateRefreshToken(userId, deviceInfo);
+      const newRefreshToken = await tokenService.generateRefreshToken(userId, deviceInfo, true);
 
       // 3. NOW revoke the old token (after new one is created)
       // This prevents the race condition where token is revoked before client gets new one

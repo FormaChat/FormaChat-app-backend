@@ -4,54 +4,95 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
+    /* ======================================== */
+    /* 1. GLOBAL STYLES */
+    /* ======================================== */
     body { 
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
       line-height: 1.6; 
-      color: #333;
+      color: #1a1a1a;
       margin: 0;
       padding: 0;
-      background-color: #f4f4f4;
+      background-color: #f5f5f5;
     }
+    
     .container { 
       max-width: 600px; 
       margin: 40px auto; 
       background: #ffffff;
-      border-radius: 8px;
+      border-radius: 12px; /* Consistent rounded corners */
       overflow: hidden;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); /* Soft floating shadow */
+      border: 1px solid #eeeeee;
     }
+
+    /* ======================================== */
+    /* 2. HEADER (The Alerting Color) */
+    /* ======================================== */
     .header { 
-      background: linear-gradient(135deg, #dc2626 0%, #f87171 100%);
-      color: white; 
+      /* Using a deep, modern maroon/red color for finality */
+      background-color: #991b1b; 
+      color: #ffffff; 
       padding: 30px; 
       text-align: center;
+      border-bottom: 4px solid #f87171; /* Lighter red accent */
     }
     .header h1 {
       margin: 0;
       font-size: 24px;
-      font-weight: 600;
+      font-weight: 700;
     }
+
+    /* ======================================== */
+    /* 3. CONTENT */
+    /* ======================================== */
     .content { 
       padding: 40px 30px;
       background: #ffffff;
+      color: #1a1a1a;
     }
     .content p {
       margin: 0 0 20px 0;
       font-size: 16px;
-      color: #4b5563;
     }
+    
+    /* List of Implications */
     .content ul {
-      margin: 15px 0;
+      margin: 20px 0;
       padding-left: 20px;
-      color: #4b5563;
+      color: #1a1a1a;
+      background: #f9fafb; /* Light background for the list */
+      padding: 20px;
+      border-radius: 8px;
     }
     .content li {
-      margin: 8px 0;
+      margin: 10px 0;
       font-size: 15px;
+      color: #4b5563;
     }
+    
+    /* Contact/Reactivation Button */
+    .btn-reactivate {
+      display: inline-block;
+      padding: 12px 25px;
+      background-color: #636b2f; /* Using the Brand Primary color for the positive action (Reactivate) */
+      color: #ffffff;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: 600;
+      margin-top: 10px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .btn-reactivate:hover {
+      background-color: #4f5625;
+    }
+
+    /* ======================================== */
+    /* 4. REASON BOX (Highlighting the core reason) */
+    /* ======================================== */
     .reason-box { 
-      background: #fef2f2;
-      border-left: 4px solid #dc2626;
+      background: #fff5f5; /* Light red/pink */
+      border-left: 4px solid #d9534f; /* Strong Red Accent */
       padding: 16px 20px;
       border-radius: 6px;
       margin: 25px 0;
@@ -59,53 +100,65 @@
     .reason-box p {
       margin: 0;
       font-size: 14px;
-      color: #991b1b;
+      color: #2d3748;
     }
     .reason-box p strong {
-      color: #7f1d1d;
+      color: #d9534f;
     }
+
+    /* ======================================== */
+    /* 5. FOOTER */
+    /* ======================================== */
     .footer { 
       text-align: center; 
       padding: 20px 30px; 
       background: #f9fafb;
       color: #6b7280; 
-      font-size: 13px;
+      font-size: 12px;
       border-top: 1px solid #e5e7eb;
     }
-    .footer p {
-      margin: 5px 0;
-    }
+    
   </style>
 </head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>Account Deactivated</h1>
+<body style="margin: 0; padding: 0; background-color: #f5f5f5;">
+  <div class="container" style="background-color: #ffffff;">
+    
+    <div class="header" style="background-color: #991b1b; color: #ffffff; padding: 30px; text-align: center; border-bottom: 4px solid #f87171;">
+      <h1 style="margin: 0; font-size: 24px; font-weight: 700;">Account Deactivated</h1>
     </div>
     
-    <div class="content">
-      <p>Your FormaChat account was deactivated on <strong>{{deactivatedAt}}</strong>.</p>
+    <div class="content" style="padding: 40px 30px;">
+      <p style="font-size: 16px;">Hello,</p>
+      <p style="font-size: 16px;">This confirms that your FormaChat account was deactivated on <strong>{{deactivatedAt}}</strong>.</p>
       
       {{#if reason}}
-      <div class="reason-box">
-        <p><strong>Reason:</strong> {{reason}}</p>
+      <div class="reason-box" style="background-color: #fff5f5; border-left: 4px solid #d9534f; padding: 16px 20px; border-radius: 6px; margin: 25px 0;">
+        <p style="margin: 0; font-size: 14px; color: #2d3748;"><strong style="color: #d9534f;">Reason:</strong> {{reason}}</p>
       </div>
       {{/if}}
 
-      <p>What this means:</p>
-      <ul>
-        <li>You can no longer access your account</li>
-        <li>All your AI support agents have been disabled</li>
-        <li>You will not be charged for any future payments</li>
+      <p style="font-size: 16px; font-weight: 600;">What this means:</p>
+      <ul style="margin: 20px 0; padding: 20px 20px 20px 40px; border-radius: 8px; background-color: #f9fafb; list-style-type: none;">
+        <li style="margin: 10px 0; font-size: 15px; color: #4b5563;">❌ You can no longer access your account.</li>
+        <li style="margin: 10px 0; font-size: 15px; color: #4b5563;">🚫 All your AI support agents have been disabled.</li>
+        <li style="margin: 10px 0; font-size: 15px; color: #4b5563;">✅ You will not be charged for any future payments.</li>
       </ul>
 
-      <p>If you believe this was a mistake or would like to reactivate your account, please contact our support team at support@formachat.com.</p>
+      <p style="font-size: 16px;">If you believe this was a mistake or would like to reactivate your account, please use the link below:</p>
 
-      <p style="margin-top: 30px;">We're sorry to see you go,<br>The FormaChat Team</p>
+      <div style="text-align: center; margin-bottom: 30px;">
+        <a href="mailto:support@formachat.com?subject=Reactivate%20My%20FormaChat%20Account" class="btn-reactivate" 
+           style="display: inline-block; padding: 12px 25px; background-color: #636b2f; color: #ffffff; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 15px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+           Reactivate Account
+        </a>
+      </div>
+
+      <p style="margin-top: 30px; font-size: 16px;">We're sorry to see you go,<br>The FormaChat Team</p>
     </div>
     
-    <div class="footer">
-      <p>&copy; {{currentYear}} FormaChat. All rights reserved.</p>
+    <div class="footer" style="background-color: #f9fafb; color: #6b7280; padding: 20px 30px; text-align: center; border-top: 1px solid #e5e7eb;">
+      <p style="margin: 5px 0;">&copy; {{currentYear}} FormaChat. All rights reserved.</p>
+      <p style="margin: 5px 0;">For support, please email support@formachat.com</p>
     </div>
   </div>
 </body>
