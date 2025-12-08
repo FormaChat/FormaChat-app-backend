@@ -56,7 +56,8 @@ class DatabaseManager {
         maxPoolSize: 10,
         connectTimeoutMS: 30000,
         socketTimeoutMS: 45000,
-        serverSelectionTimeoutMS: 5000,
+        family: 4,                          
+        serverSelectionTimeoutMS: 30000,
         retryWrites: true,
         retryReads: true,
       };

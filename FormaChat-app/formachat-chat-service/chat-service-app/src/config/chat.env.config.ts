@@ -58,6 +58,7 @@ interface EnvConfig {
   LLM_PROVIDER: string;
 
   INTERNAL_SERVICE_SECRET: string;
+  
 }
 
 class EnvironmentValidator {
@@ -128,7 +129,7 @@ class EnvironmentValidator {
     const redisPassword = this.getEnv('REDIS_PASSWORD', false);
     
     // Session Configuration
-    const dailySessionLimit = this.getEnvAsNumber('DAILY_SESSION_LIMIT', 20);
+    const dailySessionLimit = this.getEnvAsNumber('DAILY_SESSION_LIMIT', 100);
     const sessionLimitWindow = this.getEnvAsNumber('SESSION_LIMIT_WINDOW', 86400); // 24 hours
     
     // Message Retention

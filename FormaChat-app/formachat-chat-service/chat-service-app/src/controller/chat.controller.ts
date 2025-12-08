@@ -4,59 +4,7 @@ import { createLogger } from '../util/chat.logger.utils';
 
 const logger = createLogger('chat-controller');
 
-/**
- * ========================================
- * CHAT CONTROLLER
- * ========================================
- * 
- * Handles HTTP requests for chat functionality
- * Validates input, calls service methods, returns responses
- * 
- * Responsibilities:
- * - Input validation
- * - HTTP request/response handling
- * - Error formatting
- * - Logging
- */
 
-// ========================================
-// PUBLIC ENDPOINTS (End User Chat)
-// ========================================
-
-/**
- * Create a new chat session
- * 
- * POST /api/chat/session/create
- * 
- * Body:
- * {
- *   businessId: string (required)
- *   visitorId?: string (optional - generated if not provided)
- * }
- * 
- * Success Response (201):
- * {
- *   success: true,
- *   data: {
- *     sessionId: "abc-123-xyz",
- *     visitorId: "visitor_xyz",
- *     businessInfo: {
- *       businessName: "Pizza Shop",
- *       chatbotGreeting: "Hi! How can I help?",
- *       chatbotTone: "Friendly"
- *     }
- *   }
- * }
- * 
- * Error Response (400/403/500):
- * {
- *   success: false,
- *   error: {
- *     code: "BUSINESS_NOT_AVAILABLE",
- *     message: "Business is currently unavailable"
- *   }
- * }
- */
 export const createSessionController = async (
   req: Request,
   res: Response
@@ -151,28 +99,6 @@ export const createSessionController = async (
   }
 };
 
-/**
- * Get existing session
- * 
- * GET /api/chat/session/:sessionId
- * 
- * Success Response (200):
- * {
- *   success: true,
- *   data: {
- *     sessionId: "abc-123",
- *     businessId: "business_xyz",
- *     status: "active",
- *     messageCount: 15,
- *     contactCaptured: true,
- *     contact: {
- *       email: "john@email.com",
- *       phone: "+1234567890",
- *       name: "John"
- *     }
- *   }
- * }
- */
 export const getSessionController = async (
   req: Request,
   res: Response
@@ -231,29 +157,6 @@ export const getSessionController = async (
   }
 };
 
-/**
- * Send a message (Main chat endpoint)
- * 
- * POST /api/chat/session/:sessionId/message
- * 
- * Body:
- * {
- *   message: string (required)
- * }
- * 
- * Success Response (200):
- * {
- *   success: true,
- *   data: {
- *     message: {
- *       role: "assistant",
- *       content: "We're open 9am-5pm!",
- *       timestamp: "2025-01-15T10:30:00Z"
- *     },
- *     contactCaptured: false
- *   }
- * }
- */
 export const sendMessageController = async (
   req: Request,
   res: Response
@@ -346,32 +249,6 @@ export const sendMessageController = async (
   }
 };
 
-/**
- * Get messages for a session (paginated)
- * 
- * GET /api/chat/session/:sessionId/messages?page=1&limit=20
- * 
- * Query Params:
- * - page: number (default: 1)
- * - limit: number (default: 20, max: 100)
- * 
- * Success Response (200):
- * {
- *   success: true,
- *   data: {
- *     messages: [
- *       { role: "user", content: "Hello", timestamp: "..." },
- *       { role: "assistant", content: "Hi!", timestamp: "..." }
- *     ],
- *     pagination: {
- *       page: 1,
- *       limit: 20,
- *       total: 45,
- *       hasMore: true
- *     }
- *   }
- * }
- */
 export const getMessagesController = async (
   req: Request,
   res: Response
@@ -448,17 +325,6 @@ export const getMessagesController = async (
   }
 };
 
-/**
- * End a chat session
- * 
- * POST /api/chat/session/:sessionId/end
- * 
- * Success Response (200):
- * {
- *   success: true,
- *   message: "Session ended successfully"
- * }
- */
 export const endSessionController = async (
   req: Request,
   res: Response
@@ -519,32 +385,6 @@ export const endSessionController = async (
   }
 };
 
-// ========================================
-// BUSINESS OWNER DASHBOARD ENDPOINTS
-// ========================================
-
-/**
- * Get all sessions for a business
- * 
- * GET /api/chat/business/:businessId/sessions
- * 
- * Query Params:
- * - status: 'active' | 'ended' | 'abandoned' (optional)
- * - contactCaptured: boolean (optional)
- * - startDate: ISO date string (optional)
- * - endDate: ISO date string (optional)
- * - page: number (default: 1)
- * - limit: number (default: 20)
- * 
- * Success Response (200):
- * {
- *   success: true,
- *   data: {
- *     sessions: [...],
- *     pagination: { page, limit, total, pages }
- *   }
- * }
- */
 export const getSessionsController = async (
   req: Request,
   res: Response
@@ -626,27 +466,6 @@ export const getSessionsController = async (
   }
 };
 
-/**
- * Get all leads for a business
- * 
- * GET /api/chat/business/:businessId/leads
- * 
- * Query Params:
- * - status: string (optional)
- * - startDate: ISO date string (optional)
- * - endDate: ISO date string (optional)
- * - page: number (default: 1)
- * - limit: number (default: 50)
- * 
- * Success Response (200):
- * {
- *   success: true,
- *   data: {
- *     leads: [...],
- *     pagination: { page, limit, total, pages }
- *   }
- * }
- */
 export const getLeadsController = async (
   req: Request,
   res: Response
@@ -724,22 +543,6 @@ export const getLeadsController = async (
   }
 };
 
-/**
- * Get session details with full conversation
- * 
- * GET /api/chat/business/:businessId/session/:sessionId
- * 
- * Success Response (200):
- * {
- *   success: true,
- *   data: {
- *     session: {
- *       sessionId, contact, status, startedAt, endedAt, messageCount
- *     },
- *     messages: [...]
- *   }
- * }
- */
 export const getSessionDetailsController = async (
   req: Request,
   res: Response
@@ -813,27 +616,6 @@ export const getSessionDetailsController = async (
   }
 };
 
-// ========================================
-// INTERNAL/CRON ENDPOINTS
-// ========================================
-
-/**
- * Delete old messages (7+ days)
- * Called by cron job
- * 
- * POST /api/chat/internal/cleanup/messages
- * 
- * Headers:
- * - x-service-token: <internal-secret>
- * 
- * Success Response (200):
- * {
- *   success: true,
- *   data: {
- *     deletedCount: 1234
- *   }
- * }
- */
 export const deleteOldMessagesController = async (
   req: Request,
   res: Response
@@ -869,82 +651,59 @@ export const deleteOldMessagesController = async (
   }
 };
 
-/**
- * Mark abandoned sessions
- * Called by cron job
- * 
- * POST /api/chat/internal/cleanup/sessions
- * 
- * Headers:
- * - x-service-token: <internal-secret>
- * 
- * Success Response (200):
- * {
- *   success: true,
- *   data: {
- *     markedCount: 15
- *   }
- * }
- */
-export const markAbandonedSessionsController = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    // Call service
-    const result = await chatService.markAbandonedSessions();
+// /**
+//  * Mark abandoned sessions
+//  * Called by cron job
+//  * 
+//  * POST /api/chat/internal/cleanup/sessions
+//  * 
+//  * Headers:
+//  * - x-service-token: <internal-secret>
+//  * 
+//  * Success Response (200):
+//  * {
+//  *   success: true,
+//  *   data: {
+//  *     markedCount: 15
+//  *   }
+//  * }
+//  */
+// export const markAbandonedSessionsController = async (
+//   req: Request,
+//   res: Response
+// ): Promise<void> => {
+//   try {
+//     // Call service
+//     const result = await chatService.markAbandonedSessions();
 
-    // Success
-    res.status(200).json({
-      success: true,
-      data: {
-        markedCount: result.markedCount
-      }
-    });
+//     // Success
+//     res.status(200).json({
+//       success: true,
+//       data: {
+//         markedCount: result.markedCount
+//       }
+//     });
 
-    logger.info('[Controller] Abandoned sessions marked', {
-      count: result.markedCount
-    });
+//     logger.info('[Controller] Abandoned sessions marked', {
+//       count: result.markedCount
+//     });
 
-  } catch (error: any) {
-    logger.error('[Controller] Mark abandoned sessions failed', {
-      message: error.message
-    });
+//   } catch (error: any) {
+//     logger.error('[Controller] Mark abandoned sessions failed', {
+//       message: error.message
+//     });
 
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTERNAL_SERVER_ERROR',
-        message: 'Failed to mark abandoned sessions'
-      }
-    });
-  }
-};
+//     res.status(500).json({
+//       success: false,
+//       error: {
+//         code: 'INTERNAL_SERVER_ERROR',
+//         message: 'Failed to mark abandoned sessions'
+//       }
+//     });
+//   }
+// };
 
-/**
- * Get dashboard summary (composite endpoint)
- * 
- * GET /api/chat/business/:businessId/dashboard-summary
- * 
- * Returns business sessions, leads, and analytics in ONE request
- * Only ONE ownership check is performed
- * 
- * Success Response (200):
- * {
- *   success: true,
- *   data: {
- *     sessions: [...],  // Recent 5 sessions
- *     leads: [...],     // Recent 5 leads
- *     analytics: {
- *       totalSessions: 45,
- *       activeSessions: 3,
- *       totalLeads: 12,
- *       totalMessages: 234,
- *       conversionRate: 27
- *     }
- *   }
- * }
- */
+
 export const getDashboardSummaryController = async (
   req: Request,
   res: Response
@@ -1039,9 +798,120 @@ export const getDashboardSummaryController = async (
   }
 };
 
-// ========================================
-// EXPORTS
-// ========================================
+/**
+ * Mark abandoned sessions
+ * Called by cron job
+ * 
+ * POST /api/chat/internal/cleanup/sessions
+ * 
+ * Headers:
+ * - x-service-token: <internal-secret>
+ * 
+ * Success Response (200):
+ * {
+ *   success: true,
+ *   data: {
+ *     abandonedCount: 12,
+ *     endedCount: 3
+ *   }
+ * }
+ */
+export const markAbandonedSessionsController = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    // Call service
+    const result = await chatService.markAbandonedSessions();
+
+    // Success
+    res.status(200).json({
+      success: true,
+      data: {
+        abandonedCount: result.abandonedCount,
+        endedCount: result.endedCount
+      }
+    });
+
+    logger.info('[Controller] Sessions marked', {
+      abandoned: result.abandonedCount,
+      ended: result.endedCount
+    });
+
+  } catch (error: any) {
+    logger.error('[Controller] Mark abandoned sessions failed', {
+      message: error.message
+    });
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to mark abandoned sessions'
+      }
+    });
+  }
+};
+
+export const testDeleteMessagesController = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    logger.info('[TEST] Manually triggering message deletion...');
+    
+    const result = await chatService.deleteOldMessages();
+    
+    res.status(200).json({
+      success: true,
+      message: 'Message deletion completed',
+      data: result
+    });
+
+  } catch (error: any) {
+    logger.error('[TEST] Manual message deletion failed', {
+      message: error.message
+    });
+
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+export const testMarkAbandonedController = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    logger.info('[TEST] Manually triggering session cleanup...');
+    
+    const result = await chatService.markAbandonedSessions();
+    
+    res.status(200).json({
+      success: true,
+      message: 'Session cleanup completed',
+      data: {
+        abandonedCount: result.abandonedCount,
+        endedCount: result.endedCount
+      }
+    });
+
+  } catch (error: any) {
+    logger.error('[TEST] Manual session cleanup failed', {
+      message: error.message
+    });
+
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+
+
 
 export default {
   // Public endpoints
@@ -1059,5 +929,8 @@ export default {
 
   // Internal/cron
   deleteOldMessagesController,
-  markAbandonedSessionsController
+  markAbandonedSessionsController,
+
+  testDeleteMessagesController,
+  testMarkAbandonedController,
 };

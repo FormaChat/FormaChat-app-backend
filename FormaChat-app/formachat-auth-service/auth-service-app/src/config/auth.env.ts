@@ -127,7 +127,7 @@ export const isTest = env.NODE_ENV === 'test';
 export const mongoOptions = {
   dbName: env.MONGODB_DB_NAME,
   maxPoolSize: 10,
-  serverSelectionTimeoutMS: 5000,
+  serverSelectionTimeoutMS: 30000,
   socketTimeoutMS: 45000,
   family: 4,
 };

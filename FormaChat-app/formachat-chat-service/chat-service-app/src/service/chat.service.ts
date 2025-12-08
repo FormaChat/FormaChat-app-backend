@@ -283,8 +283,16 @@ export class ChatService {
         return { success: false, error: 'SESSION_NOT_FOUND' };
       }
 
-      if (session.status !== 'active') {
-        return { success: false, error: 'SESSION_NOT_ACTIVE' };
+      if (session.status === 'ended') {
+        return { 
+          success: false, 
+          error: 'SESSION_ENDED'
+        };
+      }
+
+      if (session.status === 'abandoned') {
+        logger.info('[Message] Reactivating abandoned session', { sessionId });
+        session.status = 'active';
       }
 
       // 2. Check if business is still active (via Business Service API)
@@ -981,48 +989,72 @@ export class ChatService {
     }
   }
 
+ 
+
   /**
-   * Mark abandoned sessions
+   * Mark abandoned sessions (IMPROVED)
    * Run hourly via cron
+   * 
+   * Strategy:
+   * - 2 hours of inactivity → 'abandoned' (user might return)
+   * - 24 hours of inactivity → 'ended' (definitely done)
    */
   async markAbandonedSessions(): Promise<{
     success: boolean;
-    markedCount: number;
+    abandonedCount: number;
+    endedCount: number;
   }> {
     try {
-      const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-      const result = await ChatSession.updateMany(
+      // 1. Mark sessions as 'abandoned' after 2 hours
+      const abandonedResult = await ChatSession.updateMany(
         {
           status: 'active',
-          lastMessageAt: { $lt: thirtyMinutesAgo }
+          lastMessageAt: { $lt: twoHoursAgo, $gte: twentyFourHoursAgo }
         },
         {
-          status: 'abandoned',
+          status: 'abandoned'
+        }
+      );
+
+      // 2. Mark sessions as 'ended' after 24 hours
+      const endedResult = await ChatSession.updateMany(
+        {
+          status: { $in: ['active', 'abandoned'] },
+          lastMessageAt: { $lt: twentyFourHoursAgo }
+        },
+        {
+          status: 'ended',
           endedAt: new Date()
         }
       );
 
-      logger.info('[Cleanup] Abandoned sessions marked', {
-        count: result.modifiedCount
+      logger.info('[Cleanup] Sessions processed', {
+        abandoned: abandonedResult.modifiedCount,
+        ended: endedResult.modifiedCount
       });
 
       return {
         success: true,
-        markedCount: result.modifiedCount || 0
+        abandonedCount: abandonedResult.modifiedCount || 0,
+        endedCount: endedResult.modifiedCount || 0
       };
 
     } catch (error: any) {
-      logger.error('[Cleanup] Abandoned session marking failed', {
+      logger.error('[Cleanup] Session marking failed', {
         message: error.message
       });
 
       return {
         success: false,
-        markedCount: 0
+        abandonedCount: 0,
+        endedCount: 0
       };
     }
   }
+
 }
 
 export const chatService = new ChatService();

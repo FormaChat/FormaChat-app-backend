@@ -47,7 +47,7 @@ export class EmailCoreService {
     try {
       logger.info('Sending welcome email', { email: params.email });
 
-      const subject = 'Welcome to FormaChat! 🚀';
+      const subject = 'Welcome to FormaChat!';
       const html = this.renderWelcomeTemplate(params);
       
       await sendEmail({
@@ -328,7 +328,7 @@ export class EmailCoreService {
       <body>
         <div class="container">
           <div class="header">
-            <h2>📬 New Feedback Received</h2>
+            <h2> New Feedback Received</h2>
           </div>
           <div class="content">
             <div class="info-section">
@@ -339,7 +339,7 @@ export class EmailCoreService {
             </div>
             
             <div class="reply-note">
-              💡 <strong>Reply directly to this email</strong> to respond to the user at ${params.email}
+              <strong>Reply directly to this email</strong> to respond to the user at ${params.email}
             </div>
             
             <div class="message-box">

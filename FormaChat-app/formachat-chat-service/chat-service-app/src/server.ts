@@ -2,6 +2,8 @@ import app from './app';
 import { databaseManager } from './config/chat.db.config';
 import { createLogger } from './util/chat.logger.utils';
 import { getRedisClient } from './config/chat.redis.config';
+import { setupCronJobs } from './cron/chat.cron';
+
 
 const logger = createLogger("server");
 
@@ -17,12 +19,16 @@ async function startServer() {
     logger.info('Connecting to Redis...');
     await getRedisClient();
 
+    logger.info('Setting up cron jobs...');
+    setupCronJobs();
+
     logger.info('Starting Express server...');
     app.listen(PORT, () => {
       logger.info(`Chat Service is running on ${PORT}`, {
         port: PORT,
         environment: process.env.NODE_ENV || 'development',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        cronJobsActive: true
       });
     });
   } catch (error: any) {

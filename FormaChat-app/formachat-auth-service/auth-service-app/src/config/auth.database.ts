@@ -56,7 +56,8 @@ class DatabaseManager {
         maxPoolSize: env.MONGODB_POOL_SIZE,
         connectTimeoutMS: env.MONGODB_CONNECTION_TIMEOUT,
         socketTimeoutMS: 45000,
-        serverSelectionTimeoutMS: 5000,
+        serverSelectionTimeoutMS: 30000,
+        family: 4,
         retryWrites: true,
         retryReads: true,
       };

@@ -89,9 +89,10 @@ export const isTest = env.NODE_ENV === 'test';
 export const mongoOptions = {
   dbName: env.MONGODB_DB_NAME,
   maxPoolSize: env.MONGODB_POOL_SIZE,
-  serverSelectionTimeoutMS: env.MONGODB_CONNECTION_TIMEOUT,
+  connectTimeoutMS: env.MONGODB_CONNECTION_TIMEOUT,
   socketTimeoutMS: 45000,
-  family: 4,
+  family: 4,                          
+  serverSelectionTimeoutMS: 30000,
 };
 
 export const pineconeOptions = {
