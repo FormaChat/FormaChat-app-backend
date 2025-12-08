@@ -440,6 +440,121 @@ export class ChatService {
   }
 
   /**
+   * Send message with streaming response
+   */
+  async *sendMessageStream(params: {
+    sessionId: string;
+    userMessage: string;
+  }): AsyncGenerator<string> {
+    try {
+      const { sessionId, userMessage } = params;
+
+      // 1. Validate session (same as sendMessage)
+      const session = await ChatSession.findOne({ sessionId });
+      if (!session) throw new Error('SESSION_NOT_FOUND');
+      if (session.status === 'ended') throw new Error('SESSION_ENDED');
+      if (session.status === 'abandoned') {
+        session.status = 'active';
+      }
+
+      // 2. Check business access
+      const accessCheck = await this.checkBusinessAccess(session.businessId);
+      if (!accessCheck.allowed) throw new Error('BUSINESS_NOT_AVAILABLE');
+      const config = accessCheck.config!;
+
+      const validTone: ChatbotTone = 
+        config.chatbotTone && isValidTone(config.chatbotTone)
+          ? config.chatbotTone
+          : getDefaultTone();
+
+      // 3. Store user message
+      const userMsgDoc = new ChatMessage({
+        sessionId,
+        businessId: session.businessId,
+        role: 'user',
+        content: userMessage,
+        timestamp: new Date()
+      });
+      await userMsgDoc.save();
+
+      session.messageCount++;
+      session.userMessageCount++;
+      session.lastMessageAt = new Date();
+      await session.save();
+
+      // 4. Extract contact & detect intent (same as before)
+      const extractedContact = this.extractContactFromMessage(userMessage);
+      if (extractedContact.hasContact && !session.contact.captured) {
+        await this.captureContactInfo(sessionId, extractedContact);
+      }
+
+      const highIntent = this.detectHighIntent(userMessage);
+
+      // 5. Get context from Pinecone
+      const vectorSearch = await searchBusiness(session.businessId, userMessage, 5);
+
+      // 6. Get conversation history
+      const history = await this.getConversationHistory(sessionId, 10);
+
+      // 7. Build system prompt
+      const systemPrompt = highIntent.hasHighIntent && !session.contact.captured
+        ? buildHighIntentPrompt({
+            businessName: config.businessName,
+            businessContext: vectorSearch.context,
+            detectedIntent: highIntent.matchedKeywords,
+            chatbotTone: validTone
+          })
+        : buildSystemPrompt({
+            businessName: config.businessName,
+            businessContext: vectorSearch.context,
+            chatbotTone: validTone,
+            chatbotGreeting: config.chatbotGreeting,
+            chatbotRestrictions: config.chatbotRestrictions
+          });
+
+      // 8. Stream LLM response
+      const llm = getLLMProvider();
+      let fullResponse = '';
+
+      for await (const chunk of llm.generateResponseStream({
+        systemPrompt,
+        userMessage,
+        conversationHistory: history
+      })) {
+        fullResponse += chunk;
+        yield chunk; // Stream to client
+      }
+
+      // 9. Store complete bot response after streaming
+      const botMsgDoc = new ChatMessage({
+        sessionId,
+        businessId: session.businessId,
+        role: 'assistant',
+        content: fullResponse,
+        timestamp: new Date(),
+        vectorsUsed: vectorSearch.results.map(r => ({
+          chunkId: r.chunkId,
+          relevanceScore: r.score,
+          sourceType: r.sourceType as any
+        }))
+      });
+      await botMsgDoc.save();
+
+      session.messageCount++;
+      session.botMessageCount++;
+      session.lastMessageAt = new Date();
+      await session.save();
+
+    } catch (error: any) {
+      logger.error('[Stream] Message streaming failed', {
+        message: error.message,
+        sessionId: params.sessionId
+      });
+      throw error;
+    }
+  }
+
+  /**
    * Get messages for a session (paginated)
    */
   async getMessages(params: {

@@ -249,6 +249,63 @@ export const sendMessageController = async (
   }
 };
 
+export const sendMessageStreamController = async (req: Request, res: Response) => {
+  try {
+    const { sessionId } = req.params;
+    const { message } = req.body;
+
+    // Validation
+    if (!sessionId) {
+      res.status(400).json({
+        success: false,
+        error: { code: 'MISSING_SESSION_ID', message: 'Session ID is required' }
+      });
+      return;
+    }
+
+    if (!message || typeof message !== 'string' || message.trim().length === 0) {
+      res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_MESSAGE', message: 'Message is required' }
+      });
+      return;
+    }
+
+    if (message.length > 1000) {
+      res.status(400).json({
+        success: false,
+        error: { code: 'MESSAGE_TOO_LONG', message: 'Message must be less than 1000 characters' }
+      });
+      return;
+    }
+
+    // Set SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    
+    // Stream chunks
+    for await (const chunk of chatService.sendMessageStream({
+      sessionId,
+      userMessage: message.trim()
+    })) {
+      res.write(`data: ${JSON.stringify({ chunk })}\n\n`);
+    }
+    
+    res.write('data: [DONE]\n\n');
+    res.end();
+
+  } catch (error: any) {
+    logger.error('[Controller] Stream message failed', {
+      message: error.message,
+      sessionId: req.params.sessionId
+    });
+
+    res.write(`data: ${JSON.stringify({ error: 'STREAMING_FAILED' })}\n\n`);
+    res.end();
+  }
+};
+
 export const getMessagesController = async (
   req: Request,
   res: Response
@@ -853,32 +910,32 @@ export const markAbandonedSessionsController = async (
   }
 };
 
-export const testDeleteMessagesController = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    logger.info('[TEST] Manually triggering message deletion...');
+// export const testDeleteMessagesController = async (
+//   req: Request,
+//   res: Response
+// ): Promise<void> => {
+//   try {
+//     logger.info('[TEST] Manually triggering message deletion...');
     
-    const result = await chatService.deleteOldMessages();
+//     const result = await chatService.deleteOldMessages();
     
-    res.status(200).json({
-      success: true,
-      message: 'Message deletion completed',
-      data: result
-    });
+//     res.status(200).json({
+//       success: true,
+//       message: 'Message deletion completed',
+//       data: result
+//     });
 
-  } catch (error: any) {
-    logger.error('[TEST] Manual message deletion failed', {
-      message: error.message
-    });
+//   } catch (error: any) {
+//     logger.error('[TEST] Manual message deletion failed', {
+//       message: error.message
+//     });
 
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-};
+//     res.status(500).json({
+//       success: false,
+//       error: error.message
+//     });
+//   }
+// };
 
 export const testMarkAbandonedController = async (
   req: Request,
@@ -918,6 +975,7 @@ export default {
   createSessionController,
   getSessionController,
   sendMessageController,
+  sendMessageStreamController,
   getMessagesController,
   endSessionController,
 
@@ -931,6 +989,6 @@ export default {
   deleteOldMessagesController,
   markAbandonedSessionsController,
 
-  testDeleteMessagesController,
+  // testDeleteMessagesController,
   testMarkAbandonedController,
 };

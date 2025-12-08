@@ -21,6 +21,8 @@ router.post(
   chatController.sendMessageController
 );
 
+router.post('/session/:sessionId/message/stream', chatController.sendMessageStreamController);
+
 router.get(
   '/session/:sessionId/messages',
   chatController.getMessagesController
@@ -80,7 +82,7 @@ router.get('/health', (req, res) => {
   });
 });
 
-router.post('/test/cleanup/messages', chatController.testDeleteMessagesController);
+// router.post('/test/cleanup/messages', chatController.testDeleteMessagesController);
 router.post('/test/cleanup/sessions', chatController.testMarkAbandonedController);
 
 export default router;

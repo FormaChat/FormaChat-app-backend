@@ -32,29 +32,29 @@ export function setupCronJobs() {
   // ========================================
   // 2. MESSAGE DELETION (Daily at 3am)
   // ========================================
-  cron.schedule('0 3 * * *', async () => {
-    try {
-      logger.info('[Cron] Starting message deletion...');
+  // cron.schedule('0 3 * * *', async () => {
+  //   try {
+  //     logger.info('[Cron] Starting message deletion...');
       
-      const result = await chatService.deleteOldMessages();
+  //     const result = await chatService.deleteOldMessages();
       
-      logger.info('[Cron] ✓ Message deletion complete', {
-        deleted: result.deletedCount,
-        timestamp: new Date().toISOString()
-      });
+  //     logger.info('[Cron] ✓ Message deletion complete', {
+  //       deleted: result.deletedCount,
+  //       timestamp: new Date().toISOString()
+  //     });
       
-    } catch (error: any) {
-      logger.error('[Cron] Message deletion failed', {
-        message: error.message,
-        stack: error.stack
-      });
-    }
-  });
+  //   } catch (error: any) {
+  //     logger.error('[Cron] Message deletion failed', {
+  //       message: error.message,
+  //       stack: error.stack
+  //     });
+  //   }
+  // });
 
   logger.info('[Cron] ✓ Jobs scheduled successfully', {
     jobs: [
       'Session cleanup (hourly)',
-      'Message deletion (daily at 3am)'
+      // 'Message deletion (daily at 3am)'
     ]
   });
 }
@@ -72,9 +72,9 @@ export async function triggerSessionCleanup() {
   return result;
 }
 
-export async function triggerMessageDeletion() {
-  logger.info('[Manual] Triggering message deletion...');
-  const result = await chatService.deleteOldMessages();
-  logger.info('[Manual] Message deletion result:', result);
-  return result;
-}
+// export async function triggerMessageDeletion() {
+//   logger.info('[Manual] Triggering message deletion...');
+//   const result = await chatService.deleteOldMessages();
+//   logger.info('[Manual] Message deletion result:', result);
+//   return result;
+// }

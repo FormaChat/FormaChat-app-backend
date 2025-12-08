@@ -167,6 +167,62 @@ export class GroqProvider implements LLMProvider {
   }
 
   /**
+   * Generate streaming chat response
+   */
+  async *generateResponseStream(request: LLMGenerateRequest): AsyncGenerator<string> {
+    try {
+      // Build messages (same as above)
+      const messages: Array<{ role: string; content: string }> = [];
+
+      messages.push({
+        role: 'system',
+        content: request.systemPrompt
+      });
+
+      if (request.conversationHistory && request.conversationHistory.length > 0) {
+        const recentHistory = request.conversationHistory.slice(-10);
+        messages.push(...recentHistory.map(msg => ({
+          role: msg.role,
+          content: msg.content
+        })));
+      }
+
+      messages.push({
+        role: 'user',
+        content: request.userMessage
+      });
+
+      // Call Groq API - STREAMING
+      const stream = await this.client.chat.completions.create({
+        model: this.model,
+        messages: messages as any,
+        temperature: request.temperature ?? this.temperature,
+        max_tokens: request.maxTokens ?? this.maxTokens,
+        stream: true, // ← Streaming enabled
+      });
+
+      // Yield chunks as they arrive
+      for await (const chunk of stream) {
+        const content = chunk.choices[0]?.delta?.content;
+        if (content) {
+          yield content;
+        }
+      }
+
+    } catch (error: any) {
+      logger.error('[Groq] Streaming failed', {
+        error: error.message
+      });
+      throw new LLMError(
+        error.message || 'Groq streaming failed',
+        'groq',
+        error.status,
+        error
+      );
+    }
+  }
+
+  /**
    * Health check - verify Groq is accessible
    */
   async healthCheck(): Promise<boolean> {

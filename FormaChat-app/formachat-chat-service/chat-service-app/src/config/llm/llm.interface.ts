@@ -68,7 +68,8 @@ export interface LLMProvider {
    * Generate a chat response
    */
   generateResponse(request: LLMGenerateRequest): Promise<LLMResponse>;
-  
+  // Add to LLMProvider interface
+  generateResponseStream(request: LLMGenerateRequest): AsyncGenerator<string>;
   /**
    * Health check - verify provider is accessible
    */
