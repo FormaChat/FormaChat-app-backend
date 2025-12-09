@@ -1002,20 +1002,25 @@ export const deleteSessionController = async (
     });
 
     if (!result.success) {
-      const statusCode = result.error === 'SESSION_NOT_FOUND' ? 404 : result.error === 'SESSION_ALREADY_DELETED' ? 409 : 500;
+      const statusCode = result.error === 'SESSION_NOT_FOUND' ? 404 : result.error === 'SESSION_ALREADY_DELETED' ? 409 :result.error === 'SESSION_HAS_LEADS'? 403 : 500;
       res.status(statusCode).json({
         success: false,
         error: {
           code: result.error,
-          message: result.error === 'SESSION_NOT_FOUND' ? 'Session not found' : result.error === 'SESSION_ALREADY_DELETED' ? 'Session is already deleted' : 'Failed to delete session'
+          message: result.error === 'SESSION_NOT_FOUND' ? 'Session not found' : result.error === 'SESSION_ALREADY_DELETED' ? 'Session is already deleted' : result.error === 'SESSION_HAS_LEADS' ? 'Cannot delete session with captured leads ': 'Failed to delete session',
+          metadata: result.metadata
         }
       });
       return;
     }
 
     res.status(200).json({
-      sucess: true,
-      message: result.message
+      success: true,
+      data: {
+        message: result.message,
+        sessionId,
+        businessId
+      }
     });
 
     logger.info('[Controller] Session deleted', {

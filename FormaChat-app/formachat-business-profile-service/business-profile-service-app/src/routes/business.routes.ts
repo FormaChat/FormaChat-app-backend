@@ -10,10 +10,13 @@ import {
   getUserBusinesses,
   getBusinessDetails,
   updateBusiness,
-  deleteBusiness
+  deleteBusiness,
+  getPublicBusinessDetails
 } from '../controllers/business.controllers';
 
 const router: Router = express.Router();
+
+router.get('/businesses/public/:id', getPublicBusinessDetails);
 
 router.post('/businesses', authMiddleware, createBusiness);
 

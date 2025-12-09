@@ -439,6 +439,68 @@ export const deleteBusiness = async (
   }
 };
 
+// In your business.controller.ts - add this NEW method
+
+export const getPublicBusinessDetails = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { id: businessId } = req.params;
+
+    // Validate business ID
+    if (!businessId || !businessId.match(/^[0-9a-fA-F]{24}$/)) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_BUSINESS_ID',
+          message: 'Invalid business ID format'
+        }
+      });
+      return;
+    }
+
+    // Use the existing getBusinessById (no ownership check)
+    const business = await businessService.getBusinessById(businessId);
+
+    // Only return public data (don't expose sensitive info)
+    const publicData = {
+      _id: business._id,
+      basicInfo: business.basicInfo,
+      chatbotGreeting: business.customerSupport?.chatbotGreeting,
+      isActive: business.isActive,
+      freezeInfo: business.freezeInfo
+    };
+
+    res.status(200).json({
+      success: true,
+      data: publicData
+    });
+
+  } catch (error: any) {
+    logger.error('[Business] Get public business error:', error.message);
+
+    if (error.message.includes('not found')) {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'BUSINESS_NOT_FOUND',
+          message: 'Business not found'
+        }
+      });
+      return;
+    }
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'FETCH_BUSINESS_FAILED',
+        message: 'Failed to retrieve business'
+      }
+    });
+  }
+};
+
 /**
  * ========================================
  * USAGE WITH ROUTES
@@ -470,5 +532,6 @@ export default {
   getUserBusinesses,
   getBusinessDetails,
   updateBusiness,
-  deleteBusiness
+  deleteBusiness,
+  getPublicBusinessDetails
 };

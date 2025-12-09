@@ -1111,6 +1111,7 @@ export class ChatService {
     success: boolean;
     error?: string;
     message?: string;
+    metadata?: any;
   }> {
     try {
       const {sessionId, businessId} = params;
@@ -1129,6 +1130,16 @@ export class ChatService {
           success: false,
           error: 'SESSION_ALREADY_DELETED'
         };
+      }
+
+      if (session.contact.captured) {
+        return {
+          success: false,
+          error: 'SESSION_HAS_LEADS',
+          metadata: {
+            contactInfo: session.contact
+          }
+        }
       }
 
       session.deletedAt = new Date();
