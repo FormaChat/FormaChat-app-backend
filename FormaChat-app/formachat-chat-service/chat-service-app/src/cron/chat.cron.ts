@@ -78,3 +78,27 @@ export async function triggerSessionCleanup() {
 //   logger.info('[Manual] Message deletion result:', result);
 //   return result;
 // }
+
+
+// // Find sessions eligible for permanent deletion
+// const sessionsToDelete = await ChatSession.find({
+//   deletedAt: { $ne: null },           // User marked for deletion
+//   messageCount: 0,                     // No messages
+//   'contact.captured': false            // No contact captured
+// });
+
+// // For each session, check if any ContactLead references it
+// for (const session of sessionsToDelete) {
+//   const hasLinkedLead = await ContactLead.findOne({
+//     $or: [
+//       { firstSessionId: session.sessionId },
+//       { lastSessionId: session.sessionId }
+//     ]
+//   });
+  
+//   if (!hasLinkedLead) {
+//     // Safe to permanently delete
+//     await ChatSession.deleteOne({ sessionId: session.sessionId });
+//     await ChatMessage.deleteMany({ sessionId: session.sessionId });
+//   }
+// }

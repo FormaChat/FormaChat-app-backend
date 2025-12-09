@@ -967,7 +967,78 @@ export const testMarkAbandonedController = async (
   }
 };
 
+export const deleteSessionController = async (
+  req: Request,
+  res: Response
+) : Promise<void> => {
+  try {
+    const {businessId, sessionId} = req.params;
 
+    if (!businessId || !businessId.match(/^[0-9a-fA-F]{24}$/)) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'INVALID_BUSINESS_ID',
+          message: 'Valid Buisness ID is required'
+        }
+      });
+      return;
+    }
+    
+    if (!sessionId) {
+      res.status(400).json({
+        success: false,
+        error: {
+          code: 'MISSING_SESSION_ID',
+          message: 'Session ID is required'
+        }
+      });
+      return;
+    }
+
+    const result = await chatService.softDeleteSession({
+      sessionId,
+      businessId
+    });
+
+    if (!result.success) {
+      const statusCode = result.error === 'SESSION_NOT_FOUND' ? 404 : result.error === 'SESSION_ALREADY_DELETED' ? 409 : 500;
+      res.status(statusCode).json({
+        success: false,
+        error: {
+          code: result.error,
+          message: result.error === 'SESSION_NOT_FOUND' ? 'Session not found' : result.error === 'SESSION_ALREADY_DELETED' ? 'Session is already deleted' : 'Failed to delete session'
+        }
+      });
+      return;
+    }
+
+    res.status(200).json({
+      sucess: true,
+      message: result.message
+    });
+
+    logger.info('[Controller] Session deleted', {
+      sessionId,
+      businessId
+    });
+
+  } catch (error: any) {
+    logger.error('[Controller] Delete session failed', {
+      message: error.message,
+      sessionId: req.params.sessionId,
+      businessId: req.params.businessId 
+    });
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL SERVER ERROR',
+        message: 'Failed to delete session'
+      }
+    });
+  }
+};
 
 
 export default {
@@ -991,4 +1062,6 @@ export default {
 
   // testDeleteMessagesController,
   testMarkAbandonedController,
+
+  deleteSessionController
 };

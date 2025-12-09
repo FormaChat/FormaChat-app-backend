@@ -60,6 +60,7 @@ export interface IChatSession extends Document {
     tags: string[]; // Custom tags '[refund_request, VIP]'
 
     createdAt: Date;
+    deletedAt?: Date;
     updatedAt: Date;
 }
 
@@ -258,6 +259,10 @@ const ChatSessionSchema: Schema = new Schema({
     tags: [{
         type: String,
     }],
+    deletedAt: {
+        type: Date,
+        index: true,
+    }
 }, {
     timestamps: true,
 });

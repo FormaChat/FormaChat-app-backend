@@ -54,6 +54,13 @@ router.get(
   chatController.getSessionDetailsController
 );
 
+router.delete(
+  '/business/:businessId/session/:sessionId',
+  authMiddleware,
+  ownershipMiddleware,
+  chatController.deleteSessionController
+);
+
 router.get(
   '/business/:businessId/dashboard-summary',
   authMiddleware,

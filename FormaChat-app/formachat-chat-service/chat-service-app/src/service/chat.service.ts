@@ -823,7 +823,7 @@ export class ChatService {
       const skip = (page - 1) * limit;
 
       // Build query
-      const query: any = { businessId };
+      const query: any = { businessId, deletedAt: null };
 
       if (filters.status) query.status = filters.status;
       if (filters.contactCaptured !== undefined) {
@@ -946,7 +946,7 @@ export class ChatService {
     error?: string;
   }> {
     try {
-      const session = await ChatSession.findOne({ sessionId, businessId });
+      const session = await ChatSession.findOne({ sessionId, businessId, deletedAt: null });
 
       if (!session) {
         return { success: false, error: 'SESSION_NOT_FOUND' };
@@ -1104,7 +1104,60 @@ export class ChatService {
     }
   }
 
- 
+  async softDeleteSession(params: {
+    sessionId: string;
+    businessId: string;
+  }): Promise<{
+    success: boolean;
+    error?: string;
+    message?: string;
+  }> {
+    try {
+      const {sessionId, businessId} = params;
+
+      const session = await ChatSession.findOne({sessionId, businessId});
+
+      if (!session) {
+        return {
+          success: false,
+          error: 'SESSION_NOT_FOUND'
+        };
+      }
+
+      if (session.deletedAt) {
+        return {
+          success: false,
+          error: 'SESSION_ALREADY_DELETED'
+        };
+      }
+
+      session.deletedAt = new Date();
+      await session.save();
+
+      logger.info('[Session] Soft deleted', {
+        sessionId,
+        businessId,
+        messageCount: session.messageCount,
+        contactCaptured: session.contact.captured
+      });
+
+      return {
+        success: true,
+        message: 'Session deleted successfully'
+      };
+
+    } catch (error: any) {
+      logger.error('[Session] Soft delete failed', {
+        message: error.message,
+        sessionId: params.sessionId
+      });
+
+      return {
+        success: false,
+        error: 'SESSION_DELETE_FAILED'
+      };
+    }
+  }
 
   /**
    * Mark abandoned sessions (IMPROVED)
