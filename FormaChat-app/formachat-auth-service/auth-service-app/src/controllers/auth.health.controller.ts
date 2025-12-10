@@ -32,7 +32,10 @@ export class HealthController {
       
       res.status(500).json({
         success: false,
-        error: 'Service unhealthy'
+        error: {
+          code: 'SERVICE_UNHEALTHY',
+          message: 'Service unhealthy'
+        }
       });
     }
   }
@@ -83,7 +86,10 @@ export class HealthController {
       
       res.status(503).json({
         success: false,
-        error: 'Service unhealthy',
+        error: {
+          code: 'SERVICE_UNHEALTHY',
+          message: 'Service unhealthy'
+        },
         data: {
           status: 'unhealthy',
           timestamp: new Date().toISOString(),

@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+  import { Request, Response } from 'express';
 import { PasswordService } from '../services/auth.password.service';
 import { otpService } from '../services/auth.otp.service';
 import { userService } from '../services/auth.user.service';
@@ -43,21 +43,30 @@ export class PasswordController {
       if (error.message === 'USER_NOT_FOUND') {
         return res.status(404).json({
           success: false,
-          error: 'User not found'
+          error: {
+            code: 'USER_NOT_FOUND',
+            message: 'User not found'
+          }
         });
       }
       
       if (error.message === 'INVALID_CURRENT_PASSWORD') {
         return res.status(400).json({
           success: false,
-          error: 'Current password is incorrect'
+          error: {
+            code : 'INVALID_CURRENT_PASSWORD',
+            message: 'Current password is incorrect'
+          }
         });
       }
       
       if (error.message.startsWith('WEAK_PASSWORD')) {
         return res.status(400).json({
           success: false,
-          error: error.message.replace('WEAK_PASSWORD: ', '')
+          error: {
+            code: 'WEAK_PASSWORD',
+            message: error.message.replace('WEAK_PASSWORD: ', '')
+          }
         });
       }
 
@@ -101,7 +110,6 @@ export class PasswordController {
       res.json({
         success: true,
         message: 'If the email exists, a reset code has been sent',
-        otpId // In production, don't return this to client
       });
 
     } catch (error: any) {

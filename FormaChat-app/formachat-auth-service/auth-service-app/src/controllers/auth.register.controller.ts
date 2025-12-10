@@ -73,14 +73,20 @@ export class RegisterController {
       if (error.message === 'USER_ALREADY_EXISTS') {
         return res.status(409).json({
           success: false,
-          error: 'User with this email already exists'
+          error: {
+            code: 'USER_ALREADY_EXISTS',
+            message: 'User with this email already exists'
+          }
         });
       }
 
       if (error.message.startsWith('WEAK_PASSWORD')) {
         return res.status(400).json({
           success: false,
-          error: error.message.replace('WEAK_PASSWORD: ', '')
+          error: {
+            code: 'WEAK_PASSWORD',
+            message: error.message.replace('WEAK_PASSWORD: ', '')
+          }
         });
       }
 

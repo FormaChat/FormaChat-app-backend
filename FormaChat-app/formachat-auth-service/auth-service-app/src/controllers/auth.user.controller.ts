@@ -19,7 +19,10 @@ export class UserController {
       if (!userId) {
         return res.status(401).json({
           success: false,
-          error: 'Authentication required'
+          error: {
+            code: 'AUTHENTICATION_REQUIRED',
+            message: 'Authentication required'
+          }
         });
       }
 
@@ -28,7 +31,10 @@ export class UserController {
       if (!user) {
         return res.status(404).json({
           success: false,
-          error: 'User not found'
+          error: {
+            code: 'USER_NOT_FOUND',
+            message: 'User not found'
+          }
         });
       }
 
@@ -55,7 +61,10 @@ export class UserController {
       
       res.status(500).json({
         success: false,
-        error: 'Failed to get profile'
+        error: {
+          code: 'FAILED_TO_GET_PROFILE',
+          message: 'Failed to get profile'
+        }
       });
     }
   }
@@ -73,7 +82,10 @@ export class UserController {
       if (!userId) {
         return res.status(401).json({
           success: false,
-          error: 'Authentication required'
+          error: {
+            code: 'AUTHENTICATION_REQUIRED',
+            message: 'Authentication required'
+          }
         });
       }
 
@@ -116,13 +128,19 @@ export class UserController {
       if (error.message === 'USER_NOT_FOUND') {
         return res.status(404).json({
           success: false,
-          error: 'User not found'
+          error: {
+            code: 'USER_NOT_FOUND',
+            message: 'User not found'
+          }
         });
       }
 
       res.status(500).json({
         success: false,
-        error: 'Failed to update profile'
+        error: {
+          code: 'FAILED_TO_UPDATE_PROFILE',
+          message: 'Failed to update profile'
+        }
       });
     }
   }
@@ -140,14 +158,20 @@ export class UserController {
       if (!userId) {
         return res.status(401).json({
           success: false,
-          error: 'Authentication required'
+          error: {
+            code: 'AUTHENTICATION_REQUIRED',
+            message: 'Authentication required'
+          }
         });
       }
 
       if (!password) {
         return res.status(400).json({
           success: false,
-          error: 'Password comfirmation required'
+          error: {
+            code: 'PASSWORD_CONFIRMATION_REQUIRED',
+            message: 'Password comfirmation required'
+          }
         })
       }
 
@@ -156,7 +180,10 @@ export class UserController {
       if (!user) {
         return res.status(404).json({
           success: false,
-          error: 'User not found'
+          error: {
+            code: 'USER_NOT_FOUND',
+            message: 'User not found'
+          }
         });
       }
 
@@ -166,7 +193,10 @@ export class UserController {
       if (!isPasswordValid) {
         return res.status(401).json({
           success: false,
-          error: 'Invalid password'
+          error: {
+            code: 'INVALID_PASSWORD',
+            message: 'Invalid password'
+          }
         });
       }
 
@@ -185,13 +215,19 @@ export class UserController {
       if (error.message === 'USER_NOT_FOUND') {
         return res.status(404).json({
           success: false,
-          error: 'User not found'
+          error: {
+            code: 'USER_NOT_FOUND',
+            message: 'User not found'
+          }
         });
       }
 
       res.status(500).json({
         success: false,
-        error: 'Failed to deactivate account'
+        error: {
+          code: 'FAILED_TO_DEACTIVATE_ACCOUNT',
+          message: 'Failed to deactivate account'
+        }
       });
     }
   }
@@ -206,7 +242,10 @@ export class UserController {
       if (!userId) {
         return res.status(401).json({
           success: false,
-          error: 'Authentication required'
+          error: {
+            code: 'AUTHENTICATION_REQUIRED',
+            message: 'Authentication required'
+          }
         });
       }
 
@@ -222,7 +261,10 @@ export class UserController {
       
       res.status(500).json({
         success: false,
-        error: 'Failed to get sessions'
+        error: {
+          code: 'FAILED_TO_GET_SESSIONS',
+          message: 'Failed to get sessions'
+        }
       });
     }
   }
@@ -242,21 +284,30 @@ export class UserController {
       if (!userId) {
         return res.status(401).json({
           success: false,
-          error: 'Authentication required'
+          error: {
+            code: 'AUTHETICATION_REQUIRED',
+            message: 'Authentication required'
+          }
         });
       }
 
       if (!message || message.trim().length === 0) {
         return res.status(400).json({
           success: false,
-          error: 'Feedback message is required'
+          error: {
+            code: 'FEEDBACK_MESSAGE_IS_REQUIRED',
+            message: 'Feedback message is required'
+          }
         });
       }
 
       if (message.length > 5000) {
         return res.status(400).json({
           success: false,
-          error: 'Feedback message too long (max 5000 characters)'
+          error: {
+            code: 'FEEDBACK_MESSAGE_TOO_LONG',
+            message: 'Feedback message too long (max 5000 characters)'
+          }
         });
       }
 
@@ -264,7 +315,10 @@ export class UserController {
 
       res.json({
         success: true,
-        message: 'Feedback submitted successfully'
+        message: {
+          code: 'FEEDBACK_SUBMITTED_SUCCESSFULLY',
+          message: 'Feedback submitted successfully'
+        }
       });
 
     } catch (error: any) {
@@ -273,13 +327,19 @@ export class UserController {
       if (error.message === 'USER_NOT_FOUND') {
         return res.status(404).json({
           success: false,
-          error: 'User not found'
+          error: {
+            code: 'USER_NOT_FOUND',
+            message: 'User not found'
+          }
         });
       }
 
       res.status(500).json({
         success: false,
-        error: 'Failed to submit feedback'
+      error: {
+        code: 'FAILED_TO_SUBMIT_FEEDBACK',
+        message: 'Failed to submit feedback'
+      }
       });
     }
   }
@@ -297,7 +357,10 @@ export class UserController {
       if (!userId) {
         return res.status(401).json({
           success: false,
-          error: 'Authentication required'
+          error: {
+            code: 'AUTHENTICATION_REQUIRED',
+            message: 'Authentication required'
+          }
         });
       }
 
@@ -322,7 +385,10 @@ export class UserController {
       
       res.status(500).json({
         success: false,
-        error: 'Failed to verify email'
+        error: {
+          code: 'FAILED_TO_VERIFY_EMAIL',
+          message: 'Failed to verify email'
+        }
       });
     }
   }

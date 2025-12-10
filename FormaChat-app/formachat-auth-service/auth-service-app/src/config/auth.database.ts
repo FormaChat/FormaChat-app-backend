@@ -26,22 +26,22 @@ class DatabaseManager {
     mongoose.connection.on('connected', () => {
       this.isConnected = true;
       this.connectionAttempts = 0;
-      logger.info('✅ MongoDB connected successfully');
+      logger.info('MongoDB connected successfully');
     });
 
     mongoose.connection.on('error', (error) => {
       this.isConnected = false;
-      logger.error('❌ MongoDB connection error:', error);
+      logger.error('MongoDB connection error:', error);
     });
 
     mongoose.connection.on('disconnected', () => {
       this.isConnected = false;
-      logger.warn('⚠️ MongoDB disconnected');
+      logger.warn('MongoDB disconnected');
     });
 
     mongoose.connection.on('reconnected', () => {
       this.isConnected = true;
-      logger.info('✅ MongoDB reconnected');
+      logger.info('MongoDB reconnected');
     });
   }
 
@@ -65,7 +65,7 @@ class DatabaseManager {
       await mongoose.connect(env.MONGODB_URI, options);
       this.isConnected = true;
     } catch (error: any) {
-      logger.error('❌ Failed to connect to MongoDB:', error);
+      logger.error('Failed to connect to MongoDB:', error);
       await this.handleConnectionFailure();
       throw error;
     }
@@ -94,9 +94,9 @@ class DatabaseManager {
     try {
       await mongoose.disconnect();
       this.isConnected = false;
-      logger.info('📊 MongoDB disconnected gracefully');
+      logger.info('MongoDB disconnected gracefully');
     } catch (error:any) {
-      logger.error('❌ Error disconnecting from MongoDB:', error);
+      logger.error('Error disconnecting from MongoDB:', error);
       throw error;
     }
   }
@@ -116,7 +116,7 @@ class DatabaseManager {
         latency,
       };
     } catch (error:any) {
-      logger.error('❌ MongoDB health check failed:', error);
+      logger.error('MongoDB health check failed:', error);
       return { status: 'unhealthy' };
     }
   }

@@ -18,7 +18,10 @@ export class TokenController {
       if (!refreshToken) {
         return res.status(400).json({
           success: false,
-          error: 'Refresh token is required'
+          error: {
+            code: 'MISSING_REFRESH_TOKEN',
+            message: 'Refresh token is required'
+          }
         });
       }
 
@@ -45,13 +48,19 @@ export class TokenController {
       if (error.message === 'INVALID_REFRESH_TOKEN') {
         return res.status(401).json({
           success: false,
-          error: 'Invalid or expired refresh token'
+          error: {
+            code: 'INVALID_REFRESH_TOKEN',
+            message: 'Invalid or expired refresh token'
+          }
         });
       }
 
       res.status(500).json({
         success: false,
-        error: 'Failed to refresh token'
+        error: {
+          code: 'TOKEN_REFRESH_FAILED',
+          message: 'Failed to refresh token'
+        }
       });
     }
   }

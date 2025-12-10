@@ -21,7 +21,10 @@ export class OTPController {
       if (!email || !type) {
         return res.status(400).json({
           success: false,
-          error: 'Email and OTP type are required'
+          error: {
+            code: 'MISSING_REQUIRED_FIELDS',
+            message: 'Email and OTP type are required'
+          }
         });
       }
 
@@ -30,7 +33,10 @@ export class OTPController {
       if (!validTypes.includes(type)) {
         return res.status(400).json({
           success: false,
-          error: `Invalid OTP type. Must be one of: ${validTypes.join(', ')}`
+          error: {
+            code: 'INVALID_OTP',
+            message: `Invalid OTP type. Must be one of: ${validTypes.join(', ')}`
+          }
         });
       }
 
@@ -101,7 +107,10 @@ export class OTPController {
       if (!verificationResult.valid) {
         return res.status(400).json({
           success: false,
-          error: verificationResult.error || 'Invalid OTP'
+          error: {
+            code: 'INVALID_OTP',
+            error: verificationResult.error || 'Invalid OTP'
+          }
         });
       }
 
@@ -132,7 +141,10 @@ export class OTPController {
       
       res.status(500).json({
         success: false,
-        error: 'OTP verification failed'
+        error: {
+          code: 'OTP_VERIFICATION_FAILED',
+          message: 'OTP verification failed'
+        }
       });
     }
   }

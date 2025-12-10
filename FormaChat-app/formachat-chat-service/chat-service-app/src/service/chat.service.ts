@@ -10,27 +10,8 @@ import { env } from '../config/chat.env.config';
 
 const logger = createLogger('chat-service');
 
-/**
- * ========================================
- * CHAT SERVICE
- * ========================================
- * 
- * Core chatbot logic for FormaChat platform
- * Handles sessions, messages, contact capture, and LLM interactions
- * 
- * Communicates with Business Service via internal API for access checks
- */
-
 export class ChatService {
 
-  // ========================================
-  // SESSION MANAGEMENT
-  // ========================================
-
-  /**
-   * Create a new chat session
-   * Called when end user first visits formachat.com/chat/{businessId}
-   */
   async createSession(params: {
     businessId: string;
     visitorId?: string;
@@ -154,10 +135,7 @@ export class ChatService {
     }
   }
 
-  /**
-   * Get existing session
-   * Called when user returns to chat (has sessionId in localStorage)
-   */
+  
   async getSession(sessionId: string): Promise<{
     success: boolean;
     session?: any;
@@ -245,14 +223,6 @@ export class ChatService {
     }
   }
 
-  // ========================================
-  // MESSAGE HANDLING
-  // ========================================
-
-  /**
-   * Send a message (Main chat logic)
-   * This is where the magic happens!
-   */
   async sendMessage(params: {
     sessionId: string;
     userMessage: string;
@@ -439,9 +409,6 @@ export class ChatService {
     }
   }
 
-  /**
-   * Send message with streaming response
-   */
   async *sendMessageStream(params: {
     sessionId: string;
     userMessage: string;
@@ -554,9 +521,6 @@ export class ChatService {
     }
   }
 
-  /**
-   * Get messages for a session (paginated)
-   */
   async getMessages(params: {
     sessionId: string;
     page?: number;
@@ -615,13 +579,6 @@ export class ChatService {
     }
   }
 
-  // ========================================
-  // CONTACT MANAGEMENT
-  // ========================================
-
-  /**
-   * Extract contact info from message using regex
-   */
   private extractContactFromMessage(message: string): {
     hasContact: boolean;
     email?: string;
@@ -648,9 +605,6 @@ export class ChatService {
     };
   }
 
-  /**
-   * Detect high intent keywords
-   */
   private detectHighIntent(message: string): {
     hasHighIntent: boolean;
     matchedKeywords: string[];
@@ -674,9 +628,6 @@ export class ChatService {
     };
   }
 
-  /**
-   * Capture contact information
-   */
   private async captureContactInfo(
     sessionId: string,
     contactData: {
@@ -762,9 +713,6 @@ export class ChatService {
     }
   }
 
-  /**
-   * Get conversation history (last N messages)
-   */
   private async getConversationHistory(
     sessionId: string,
     limit: number = 10
@@ -794,13 +742,6 @@ export class ChatService {
     }
   }
 
-  // ========================================
-  // BUSINESS OWNER DASHBOARD
-  // ========================================
-
-  /**
-   * Get all sessions for a business
-   */
   async getSessionsForBusiness(params: {
     businessId: string;
     filters?: {
@@ -875,9 +816,6 @@ export class ChatService {
     }
   }
 
-  /**
-   * Get all leads for a business
-   */
   async getLeadsForBusiness(params: {
     businessId: string;
     filters?: {
@@ -936,9 +874,6 @@ export class ChatService {
     }
   }
 
-  /**
-   * Get session details with full conversation
-   */
   async getSessionDetails(sessionId: string, businessId: string): Promise<{
     success: boolean;
     session?: any;
@@ -992,14 +927,6 @@ export class ChatService {
     }
   }
 
-  // ========================================
-  // BUSINESS ACCESS CHECK (via Business Service API)
-  // ========================================
-
-  /**
-   * Check if business can accept chat sessions
-   * Calls Business Service internal API
-   */
   private async checkBusinessAccess(businessId: string): Promise<{
     allowed: boolean;
     config?: {
@@ -1059,47 +986,6 @@ export class ChatService {
       return {
         allowed: false,
         reason: 'Unable to verify business access'
-      };
-    }
-  }
-
-  // ========================================
-  // CRON / CLEANUP JOBS
-  // ========================================
-
-  /**
-   * Delete old messages (7 days+)
-   * Run daily via cron
-   */
-  async deleteOldMessages(): Promise<{
-    success: boolean;
-    deletedCount: number;
-  }> {
-    try {
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-
-      const result = await ChatMessage.deleteMany({
-        timestamp: { $lt: sevenDaysAgo }
-      });
-
-      logger.info('[Cleanup] Old messages deleted', {
-        count: result.deletedCount,
-        olderThan: sevenDaysAgo
-      });
-
-      return {
-        success: true,
-        deletedCount: result.deletedCount || 0
-      };
-
-    } catch (error: any) {
-      logger.error('[Cleanup] Message deletion failed', {
-        message: error.message
-      });
-
-      return {
-        success: false,
-        deletedCount: 0
       };
     }
   }
@@ -1170,14 +1056,9 @@ export class ChatService {
     }
   }
 
-  /**
-   * Mark abandoned sessions (IMPROVED)
-   * Run hourly via cron
-   * 
-   * Strategy:
-   * - 2 hours of inactivity → 'abandoned' (user might return)
-   * - 24 hours of inactivity → 'ended' (definitely done)
-   */
+ 
+  // Cron Jobs
+
   async markAbandonedSessions(): Promise<{
     success: boolean;
     abandonedCount: number;
@@ -1233,6 +1114,160 @@ export class ChatService {
       };
     }
   }
+
+   async permanentlyDeleteSessions(): Promise<{
+    success: boolean;
+    deletedCount: number;
+    skippedCount: number;
+  }> {
+    try {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+      // Find sessions eligible for permanent deletion
+      const sessionsToDelete = await ChatSession.find({
+        deletedAt: { $ne: null, $lt: sevenDaysAgo },  // Soft-deleted 7+ days ago
+        'contact.captured': false                      // No lead captured
+      });
+
+      let deletedCount = 0;
+      let skippedCount = 0;
+
+      for (const session of sessionsToDelete) {
+        // SAFETY CHECK: Double-verify no ContactLead references this session
+        const hasLinkedLead = await ContactLead.findOne({
+          $or: [
+            { firstSessionId: session.sessionId },
+            { lastSessionId: session.sessionId }
+          ]
+        });
+
+        if (hasLinkedLead) {
+          // CRITICAL: Skip deletion if lead exists (safety net)
+          logger.warn('[Cleanup] Skipping deletion - lead found', {
+            sessionId: session.sessionId,
+            leadEmail: hasLinkedLead.email
+          });
+          skippedCount++;
+          continue;
+        }
+
+        // Safe to permanently delete
+        await Promise.all([
+          ChatSession.deleteOne({ sessionId: session.sessionId }),
+          ChatMessage.deleteMany({ sessionId: session.sessionId })
+        ]);
+
+        logger.info('[Cleanup] Permanently deleted session', {
+          sessionId: session.sessionId,
+          messageCount: session.messageCount,
+          deletedAt: session.deletedAt,
+          daysSinceDeletion: session.deletedAt 
+            ? Math.floor((Date.now() - session.deletedAt.getTime()) / (24 * 60 * 60 * 1000))
+            : 0
+        });
+
+        deletedCount++;
+      }
+
+      logger.info('[Cleanup] Permanent deletion complete', {
+        eligible: sessionsToDelete.length,
+        deleted: deletedCount,
+        skipped: skippedCount
+      });
+
+      return {
+        success: true,
+        deletedCount,
+        skippedCount
+      };
+
+    } catch (error: any) {
+      logger.error('[Cleanup] Permanent deletion failed', {
+        message: error.message,
+        stack: error.stack
+      });
+
+      return {
+        success: false,
+        deletedCount: 0,
+        skippedCount: 0
+      };
+    }
+  }
+
+  /**
+   * [TEST ONLY] Permanently delete sessions without grace period
+   * Use this to test the deletion logic immediately
+   */
+  // async permanentlyDeleteSessionsNoGracePeriod(): Promise<{
+  //   success: boolean;
+  //   deletedCount: number;
+  //   skippedCount: number;
+  // }> {
+  //   try {
+  //     // NO grace period - delete immediately
+  //     const sessionsToDelete = await ChatSession.find({
+  //       deletedAt: { $ne: null },              // Just needs to be soft-deleted
+  //       'contact.captured': false              // No lead captured
+  //     });
+
+  //     let deletedCount = 0;
+  //     let skippedCount = 0;
+
+  //     for (const session of sessionsToDelete) {
+  //       const hasLinkedLead = await ContactLead.findOne({
+  //         $or: [
+  //           { firstSessionId: session.sessionId },
+  //           { lastSessionId: session.sessionId }
+  //         ]
+  //       });
+
+  //       if (hasLinkedLead) {
+  //         logger.warn('[TEST] Skipping deletion - lead found', {
+  //           sessionId: session.sessionId,
+  //           leadEmail: hasLinkedLead.email
+  //         });
+  //         skippedCount++;
+  //         continue;
+  //       }
+
+  //       await Promise.all([
+  //         ChatSession.deleteOne({ sessionId: session.sessionId }),
+  //         ChatMessage.deleteMany({ sessionId: session.sessionId })
+  //       ]);
+
+  //       logger.info('[TEST] Permanently deleted session', {
+  //         sessionId: session.sessionId,
+  //         messageCount: session.messageCount
+  //       });
+
+  //       deletedCount++;
+  //     }
+
+  //     logger.info('[TEST] Permanent deletion complete', {
+  //       eligible: sessionsToDelete.length,
+  //       deleted: deletedCount,
+  //       skipped: skippedCount
+  //     });
+
+  //     return {
+  //       success: true,
+  //       deletedCount,
+  //       skippedCount
+  //     };
+
+  //   } catch (error: any) {
+  //     logger.error('[TEST] Permanent deletion failed', {
+  //       message: error.message
+  //     });
+
+  //     return {
+  //       success: false,
+  //       deletedCount: 0,
+  //       skippedCount: 0
+  //     };
+  //   }
+  // }
 
 }
 

@@ -71,7 +71,7 @@ router.get(
 router.post(
   '/internal/cleanup/messages',
   internalMiddleware,
-  chatController.deleteOldMessagesController
+  chatController.permanentlyDeleteSessionsController
 );
 
 router.post(
@@ -89,7 +89,8 @@ router.get('/health', (req, res) => {
   });
 });
 
-// router.post('/test/cleanup/messages', chatController.testDeleteMessagesController);
-router.post('/test/cleanup/sessions', chatController.testMarkAbandonedController);
 
+// router.post('/test/cleanup/permanent-deletion-no-grace', 
+//   chatController.testPermanentDeletionNoGraceController
+// );
 export default router;

@@ -60,15 +60,15 @@ class RedisManager {
     this.client.on('connect', () => logger.info('🔄 Redis connecting...'));
     this.client.on('ready', () => {
       this.isConnected = true;
-      logger.info('✅ Redis connected and ready');
+      logger.info('Redis connected and ready');
     });
     this.client.on('error', (error) => {
       this.isConnected = false;
-      logger.error('❌ Redis error:', error);
+      logger.error('Redis error:', error);
     });
     this.client.on('close', () => {
       this.isConnected = false;
-      logger.warn('⚠️ Redis connection closed');
+      logger.warn('Redis connection closed');
     });
     this.client.on('reconnecting', () => logger.info('🔄 Redis reconnecting...'));
   }
@@ -78,7 +78,7 @@ class RedisManager {
     try {
       await this.client.connect();
     } catch (error: any) {
-      logger.error('❌ Failed to connect to Redis:', error);
+      logger.error('Failed to connect to Redis:', error);
       throw error;
     }
   }
@@ -88,9 +88,9 @@ class RedisManager {
     try {
       await this.client.quit();
       this.isConnected = false;
-      logger.info('✅ Redis disconnected gracefully');
+      logger.info('Redis disconnected gracefully');
     } catch (error: any) {
-      logger.error('❌ Error disconnecting from Redis:', error);
+      logger.error('Error disconnecting from Redis:', error);
       throw error;
     }
   }
@@ -253,7 +253,7 @@ class RedisManager {
         latency
       };
     } catch (error: any) {
-      logger.error('❌ Redis health check failed:', error);
+      logger.error('Redis health check failed:', error);
       return { status: 'unhealthy' };
     }
   }

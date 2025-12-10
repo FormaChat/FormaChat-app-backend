@@ -673,94 +673,6 @@ export const getSessionDetailsController = async (
   }
 };
 
-export const deleteOldMessagesController = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    // Call service
-    const result = await chatService.deleteOldMessages();
-
-    // Success
-    res.status(200).json({
-      success: true,
-      data: {
-        deletedCount: result.deletedCount
-      }
-    });
-
-    logger.info('[Controller] Old messages deleted', {
-      count: result.deletedCount
-    });
-
-  } catch (error: any) {
-    logger.error('[Controller] Delete old messages failed', {
-      message: error.message
-    });
-
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTERNAL_SERVER_ERROR',
-        message: 'Failed to delete old messages'
-      }
-    });
-  }
-};
-
-// /**
-//  * Mark abandoned sessions
-//  * Called by cron job
-//  * 
-//  * POST /api/chat/internal/cleanup/sessions
-//  * 
-//  * Headers:
-//  * - x-service-token: <internal-secret>
-//  * 
-//  * Success Response (200):
-//  * {
-//  *   success: true,
-//  *   data: {
-//  *     markedCount: 15
-//  *   }
-//  * }
-//  */
-// export const markAbandonedSessionsController = async (
-//   req: Request,
-//   res: Response
-// ): Promise<void> => {
-//   try {
-//     // Call service
-//     const result = await chatService.markAbandonedSessions();
-
-//     // Success
-//     res.status(200).json({
-//       success: true,
-//       data: {
-//         markedCount: result.markedCount
-//       }
-//     });
-
-//     logger.info('[Controller] Abandoned sessions marked', {
-//       count: result.markedCount
-//     });
-
-//   } catch (error: any) {
-//     logger.error('[Controller] Mark abandoned sessions failed', {
-//       message: error.message
-//     });
-
-//     res.status(500).json({
-//       success: false,
-//       error: {
-//         code: 'INTERNAL_SERVER_ERROR',
-//         message: 'Failed to mark abandoned sessions'
-//       }
-//     });
-//   }
-// };
-
-
 export const getDashboardSummaryController = async (
   req: Request,
   res: Response
@@ -855,118 +767,6 @@ export const getDashboardSummaryController = async (
   }
 };
 
-/**
- * Mark abandoned sessions
- * Called by cron job
- * 
- * POST /api/chat/internal/cleanup/sessions
- * 
- * Headers:
- * - x-service-token: <internal-secret>
- * 
- * Success Response (200):
- * {
- *   success: true,
- *   data: {
- *     abandonedCount: 12,
- *     endedCount: 3
- *   }
- * }
- */
-export const markAbandonedSessionsController = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    // Call service
-    const result = await chatService.markAbandonedSessions();
-
-    // Success
-    res.status(200).json({
-      success: true,
-      data: {
-        abandonedCount: result.abandonedCount,
-        endedCount: result.endedCount
-      }
-    });
-
-    logger.info('[Controller] Sessions marked', {
-      abandoned: result.abandonedCount,
-      ended: result.endedCount
-    });
-
-  } catch (error: any) {
-    logger.error('[Controller] Mark abandoned sessions failed', {
-      message: error.message
-    });
-
-    res.status(500).json({
-      success: false,
-      error: {
-        code: 'INTERNAL_SERVER_ERROR',
-        message: 'Failed to mark abandoned sessions'
-      }
-    });
-  }
-};
-
-// export const testDeleteMessagesController = async (
-//   req: Request,
-//   res: Response
-// ): Promise<void> => {
-//   try {
-//     logger.info('[TEST] Manually triggering message deletion...');
-    
-//     const result = await chatService.deleteOldMessages();
-    
-//     res.status(200).json({
-//       success: true,
-//       message: 'Message deletion completed',
-//       data: result
-//     });
-
-//   } catch (error: any) {
-//     logger.error('[TEST] Manual message deletion failed', {
-//       message: error.message
-//     });
-
-//     res.status(500).json({
-//       success: false,
-//       error: error.message
-//     });
-//   }
-// };
-
-export const testMarkAbandonedController = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    logger.info('[TEST] Manually triggering session cleanup...');
-    
-    const result = await chatService.markAbandonedSessions();
-    
-    res.status(200).json({
-      success: true,
-      message: 'Session cleanup completed',
-      data: {
-        abandonedCount: result.abandonedCount,
-        endedCount: result.endedCount
-      }
-    });
-
-  } catch (error: any) {
-    logger.error('[TEST] Manual session cleanup failed', {
-      message: error.message
-    });
-
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-};
-
 export const deleteSessionController = async (
   req: Request,
   res: Response
@@ -1045,6 +845,99 @@ export const deleteSessionController = async (
   }
 };
 
+export const markAbandonedSessionsController = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    // Call service
+    const result = await chatService.markAbandonedSessions();
+
+    // Success
+    res.status(200).json({
+      success: true,
+      data: {
+        abandonedCount: result.abandonedCount,
+        endedCount: result.endedCount
+      }
+    });
+
+    logger.info('[Controller] Sessions marked', {
+      abandoned: result.abandonedCount,
+      ended: result.endedCount
+    });
+
+  } catch (error: any) {
+    logger.error('[Controller] Mark abandoned sessions failed', {
+      message: error.message
+    });
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to mark abandoned sessions'
+      }
+    });
+  }
+};
+
+export const permanentlyDeleteSessionsController = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    logger.info('[TEST] Manually triggering permanent deletion...');
+    
+    const result = await chatService.permanentlyDeleteSessions();
+    
+    res.status(200).json({
+      success: true,
+      message: 'Permanent deletion completed',
+      data: {
+        deletedCount: result.deletedCount,
+        skippedCount: result.skippedCount
+      }
+    });
+
+  } catch (error: any) {
+    logger.error('[TEST] Manual permanent deletion failed', {
+      message: error.message
+    });
+
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+// export const testPermanentDeletionNoGraceController = async (
+//   req: Request,
+//   res: Response
+// ): Promise<void> => {
+//   try {
+//     logger.info('[TEST] Triggering permanent deletion WITHOUT grace period...');
+    
+//     const result = await chatService.permanentlyDeleteSessionsNoGracePeriod();
+    
+//     res.status(200).json({
+//       success: true,
+//       message: 'Permanent deletion completed (no grace period)',
+//       data: result
+//     });
+
+//   } catch (error: any) {
+//     logger.error('[TEST] Test deletion failed', {
+//       message: error.message
+//     });
+
+//     res.status(500).json({
+//       success: false,
+//       error: error.message
+//     });
+//   }
+// };
 
 export default {
   // Public endpoints
@@ -1061,12 +954,13 @@ export default {
   getSessionDetailsController,
   getDashboardSummaryController,
 
+  
+  deleteSessionController,
+
   // Internal/cron
-  deleteOldMessagesController,
   markAbandonedSessionsController,
+  permanentlyDeleteSessionsController,
+  
+  // testPermanentDeletionNoGraceController,
 
-  // testDeleteMessagesController,
-  testMarkAbandonedController,
-
-  deleteSessionController
 };

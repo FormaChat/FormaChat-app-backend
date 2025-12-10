@@ -38,7 +38,10 @@ export class LoginController {
       if (!loginResult.success) {
         return res.status(401).json({
           success: false,
-          error: loginResult.error,
+          error: {
+            code: loginResult.error,
+            message: 'Invalid email or password'
+          },
           isLocked: loginResult.isLocked,
           lockUntil: loginResult.lockUntil
         });
