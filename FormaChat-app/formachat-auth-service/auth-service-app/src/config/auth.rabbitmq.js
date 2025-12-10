@@ -227,7 +227,7 @@ class RabbitMQConnection {
 
     try {
       const published = this.channel.publish(
-        this.email.exchange,
+        this.exchanges.email,
         this.routingKeys[routingKey],
         Buffer.from(JSON.stringify(message)),
         { persistent: options.persistent ?? true, priority: options.priority ?? 0 }
