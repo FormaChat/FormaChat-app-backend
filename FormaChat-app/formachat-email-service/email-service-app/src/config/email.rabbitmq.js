@@ -315,8 +315,9 @@ class RabbitMQConnection {
             
             await handler(message);
             
-            // ✅ ONLY ACK ONCE - if successful
-            if (!options.noAck) this.channel.ack(msg);
+            if (!options.noAck) {
+              this.channel.ack(msg);
+            }
             
           } catch (error) {
             logger.error('Failed to process message', { 
@@ -326,10 +327,24 @@ class RabbitMQConnection {
             });
             
             if (!options.noAck) {
-              // Let the handler's retry logic decide what to do
-              // If handler throws, we NACK with requeue for retries
-              // If handler doesn't throw, we ACK (message goes to DLQ via publishToDLQ)
-              this.channel.nack(msg, false, true); // ← REQUeUE for retries
+               const currentRetry = (msg.properties.headers?.['x-retry-count']) || 0;
+              // Re-publish with incremented retry count
+              const updatedMessage = JSON.parse(msg.content.toString());
+              updatedMessage.retryCount = currentRetry + 1;
+              
+              this.channel.publish(
+                msg.fields.exchange,
+                msg.fields.routingKey,
+                Buffer.from(JSON.stringify(updatedMessage)),
+                {
+                  ...msg.properties,
+                  headers: {
+                    ...msg.properties.headers,
+                    'x-retry-count': currentRetry + 1
+                  }
+                }
+              );
+              this.channel.nack(msg); // ← REQUeUE for retries
             }
           }
         },
