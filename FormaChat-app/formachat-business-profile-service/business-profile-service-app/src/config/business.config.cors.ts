@@ -16,7 +16,8 @@ class CORSManager {
 
   private allowedOrigins: string[] = [
     'http://localhost:5173',   // dev frontend
-    'https://www.formachat.com' // prod frontend
+    'https://www.formachat.com', // prod frontend
+    'https://frontend-mockup-phi.vercel.app/' // vercel
   ];
 
   private constructor() {}
