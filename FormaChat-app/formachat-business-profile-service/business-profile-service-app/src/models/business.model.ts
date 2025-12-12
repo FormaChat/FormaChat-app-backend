@@ -227,7 +227,7 @@ const BusinessSchema: Schema = new Schema({
     },
     chatbotCapabilities: [{
       type: String,
-      enum: ['Answer FAQs', 'Book apointments', 'Generate leads', 'Handle Complaints', 'Provide product info',
+      enum: ['Answer FAQs', 'Book appointments', 'Generate leads', 'Handle Complaints', 'Provide product info',
         'Process orders'
       ]
     }]
