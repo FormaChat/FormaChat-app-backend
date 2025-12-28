@@ -155,3 +155,7 @@ dist/
 .vscode/
 !.vscode/settings.json
 !.vscode/extensions.json
+
+src/send-recovery-email.js
+src/service-recovery.hbs
+

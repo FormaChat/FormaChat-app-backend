@@ -1,1 +1,14 @@
-The formachat chat service app as the name implies s the main engine of this app..it speaks to end users while handling the retrieval of information from the vector db
+### Chat Service
+## Overview
+
+The Chat Service drives the conversational experience for end users. It retrieves relevant business context and generates responses tailored to each business.
+
+## Responsibilities
+
+Retrieve relevant embeddings based on user queries
+
+Provide contextual input to the language model
+
+Generate accurate and business specific responses
+
+Serve chatbot interactions for end users
