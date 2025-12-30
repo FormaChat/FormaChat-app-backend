@@ -147,10 +147,8 @@ const BusinessSchema: Schema = new Schema({
     businessType: {
       type: String,
       required: true,
-      enum: [
-        'E-commerce', 'Real Estate', 'Restaurant', 'Hotel',
-        'Service-based', 'Tech/SaaS', 'Healthcare', 'Education', 'Other'
-      ]
+      maxlength: 100,
+      trim: true
     },
     operatingHours: {
       type: String,
