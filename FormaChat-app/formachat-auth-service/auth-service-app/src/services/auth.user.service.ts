@@ -113,12 +113,12 @@ export class UserService {
       // TODO: Publish user.created event via event producer
       // await eventProducer.publishUserCreated({ ... });
 
-      await publishUserCreated({
-        userId: user._id.toString(),
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName
-      });
+      // await publishUserCreated({
+      //   userId: user._id.toString(),
+      //   email: user.email,
+      //   firstName: user.firstName,
+      //   lastName: user.lastName
+      // });
 
       return user;
     } catch (error:any) {
