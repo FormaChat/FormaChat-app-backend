@@ -74,6 +74,8 @@ export const getBusinessChatConfig = async (
         chatbotTone: business.customerSupport.chatbotTone,
         chatbotGreeting: business.customerSupport.chatbotGreeting,
         chatbotRestrictions: business.customerSupport.chatbotRestrictions,
+        chatbotCustomInstructions: business.customerSupport.chatbotCustomInstructions,
+        webhookUrl: business.webhookUrl,
 
         // CHATBOT CAPABILITIES
         chatbotCapabilities: business.contactEscalation.chatbotCapabilities,

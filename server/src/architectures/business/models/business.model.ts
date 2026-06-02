@@ -47,7 +47,9 @@ export interface IBusinessDocument extends Document {
     chatbotTone: string;
     chatbotGreeting?: string;
     chatbotRestrictions?: string;
+    chatbotCustomInstructions?: string;
   };
+  webhookUrl?: string;
   contactEscalation: {
     contactMethods: Array<{
       method: string;
@@ -202,8 +204,10 @@ const BusinessSchema: Schema = new Schema({
       default: 'Friendly'
     },
     chatbotGreeting: String,
-    chatbotRestrictions: String
+    chatbotRestrictions: String,
+    chatbotCustomInstructions: { type: String, maxlength: 1000 }
   },
+  webhookUrl: { type: String, trim: true },
   contactEscalation: {
     contactMethods: [{
       method: {

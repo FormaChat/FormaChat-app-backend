@@ -1,12 +1,20 @@
 import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
-import { publishLeadCaptured } from '../config/chat.rabbitmq';
+import { publishLeadCaptured, publishSessionStarted, publishSessionEnded, publishMessageSent } from '../config/chat.rabbitmq';
 import { ChatSession, ChatMessage, ContactLead } from '../model/chat.model';
 import { createLogger } from '../util/chat.logger.utils';
 import { checkDailyLimit, incrementSessionCount } from '../config/chat.redis.config';
 import { searchBusiness } from '../config/chat.pinecone.config';
 import { getLLMProvider } from '../config/llm/llm.factory';
-import { buildSystemPrompt, buildHighIntentPrompt, ChatbotTone, isValidTone, getDefaultTone } from '../config/llm/llm.prompts';
+import {
+  buildSystemPrompt,
+  buildHighIntentPrompt,
+  buildContactExtractionPrompt,
+  buildConversationSummaryPrompt,
+  ChatbotTone,
+  isValidTone,
+  getDefaultTone
+} from '../config/llm/llm.prompts';
 import { env } from '../config/chat.env.config';
 
 const logger = createLogger('chat-service');
@@ -100,6 +108,7 @@ export class ChatService {
       });
 
       await session.save();
+      publishSessionStarted({ businessId, sessionId, visitorId: generatedVisitorId });
 
       // 5. Increment Redis session counter
       await incrementSessionCount(businessId);
@@ -206,6 +215,7 @@ export class ChatService {
       session.status = 'ended';
       session.endedAt = new Date();
       await session.save();
+      publishSessionEnded({ businessId: session.businessId, sessionId, messageCount: session.messageCount, durationMs: duration });
 
       logger.info('[Session] Ended', {
         sessionId,
@@ -302,48 +312,71 @@ export class ChatService {
       session.lastMessageAt = new Date();
       await session.save();
 
-      // 4. Extract contact info from message (if present)
-      const extractedContact = this.extractContactFromMessage(userMessage);
-
-      if (extractedContact.hasContact && !session.contact.captured) {
-        await this.captureContactInfo(sessionId, extractedContact);
-      }
-
-      // 5. Detect high intent
+      // 4. Detect high intent
       const highIntent = this.detectHighIntent(userMessage);
 
-      // 6. Fetch context from Pinecone (using namespace from config)
+      // 5. Fetch context from Pinecone
       const vectorSearch = await searchBusiness(
         session.businessId,
         userMessage,
-        5 // top 5 results
+        5
       );
 
       if (!vectorSearch.hasResults) {
-        logger.warn('[Message] No vector results found', {
-          sessionId,
-          businessId: session.businessId
-        });
+        logger.warn('[Message] No vector results found', { sessionId, businessId: session.businessId });
       }
 
-      // 7. Get conversation history (last 10 messages)
-      const history = await this.getConversationHistory(sessionId, 10);
+      // Confidence scoring — low if all results are below threshold
+      const CONFIDENCE_THRESHOLD = 0.45;
+      const maxScore = vectorSearch.results.reduce((max, r) => Math.max(max, r.score ?? 0), 0);
+      const lowConfidence = vectorSearch.results.length > 0 && maxScore < CONFIDENCE_THRESHOLD;
+
+      if (lowConfidence) {
+        logger.info('[Message] Low confidence context', { sessionId, maxScore });
+      }
+
+      // 6. Build conversation history with rolling summary for long chats
+      const { summary, history } = await this.buildHistoryWithSummary(sessionId, 10);
+
+      const summaryInjection = summary
+        ? `\nEARLIER CONVERSATION SUMMARY:\n${summary}\n`
+        : '';
+
+      // 7. Extract contact info using LLM (last 3 user messages)
+      if (!session.contact.captured) {
+        const recentUserMessages = await ChatMessage.find({ sessionId, role: 'user', deletedAt: null })
+          .select('content')
+          .sort({ timestamp: -1 })
+          .limit(3);
+
+        if (recentUserMessages.length > 0) {
+          const extracted = await this.extractContactWithLLM(
+            recentUserMessages.map(m => m.content).reverse()
+          );
+          if (extracted.hasContact) {
+            await this.captureContactInfo(sessionId, extracted, config.webhookUrl);
+          }
+        }
+      }
 
       // 8. Build system prompt
+      const sharedPromptParams = {
+        businessName: config.businessName,
+        businessContext: vectorSearch.context + summaryInjection,
+        chatbotTone: validTone,
+        customInstructions: config.chatbotCustomInstructions,
+        lowConfidence,
+      };
 
       const systemPrompt = highIntent.hasHighIntent && !session.contact.captured
         ? buildHighIntentPrompt({
-            businessName: config.businessName,
-            businessContext: vectorSearch.context,
+            ...sharedPromptParams,
             detectedIntent: highIntent.matchedKeywords,
-            chatbotTone: validTone
           })
         : buildSystemPrompt({
-            businessName: config.businessName,
-            businessContext: vectorSearch.context,
-            chatbotTone: validTone,
+            ...sharedPromptParams,
             chatbotGreeting: config.chatbotGreeting,
-            chatbotRestrictions: config.chatbotRestrictions
+            chatbotRestrictions: config.chatbotRestrictions,
           });
 
       // 9. Call LLM
@@ -379,6 +412,8 @@ export class ChatService {
       session.botMessageCount++;
       session.lastMessageAt = new Date();
       await session.save();
+
+      publishMessageSent({ businessId: session.businessId, sessionId, role: 'assistant', tokensUsed: llmResponse.tokensUsed.total });
 
       const totalDuration = Date.now() - startTime;
 
@@ -452,35 +487,44 @@ export class ChatService {
       session.lastMessageAt = new Date();
       await session.save();
 
-      // 4. Extract contact & detect intent (same as before)
-      const extractedContact = this.extractContactFromMessage(userMessage);
-      if (extractedContact.hasContact && !session.contact.captured) {
-        await this.captureContactInfo(sessionId, extractedContact);
-      }
-
+      // 4. Detect intent + fetch context
       const highIntent = this.detectHighIntent(userMessage);
-
-      // 5. Get context from Pinecone
       const vectorSearch = await searchBusiness(session.businessId, userMessage, 5);
 
-      // 6. Get conversation history
-      const history = await this.getConversationHistory(sessionId, 10);
+      const CONFIDENCE_THRESHOLD = 0.45;
+      const maxScore = vectorSearch.results.reduce((max, r) => Math.max(max, r.score ?? 0), 0);
+      const lowConfidence = vectorSearch.results.length > 0 && maxScore < CONFIDENCE_THRESHOLD;
 
-      // 7. Build system prompt
+      // Extract contact via LLM (best-effort, non-blocking for stream)
+      if (!session.contact.captured) {
+        const recentUserMessages = await ChatMessage.find({ sessionId, role: 'user', deletedAt: null })
+          .select('content').sort({ timestamp: -1 }).limit(3);
+        if (recentUserMessages.length > 0) {
+          this.extractContactWithLLM(recentUserMessages.map(m => m.content).reverse())
+            .then(extracted => {
+              if (extracted.hasContact) {
+                this.captureContactInfo(sessionId, extracted, config.webhookUrl).catch(() => {});
+              }
+            })
+            .catch(() => {});
+        }
+      }
+
+      // 5. Build history + prompt
+      const { summary, history } = await this.buildHistoryWithSummary(sessionId, 10);
+      const summaryInjection = summary ? `\nEARLIER CONVERSATION SUMMARY:\n${summary}\n` : '';
+
+      const sharedParams = {
+        businessName: config.businessName,
+        businessContext: vectorSearch.context + summaryInjection,
+        chatbotTone: validTone,
+        customInstructions: config.chatbotCustomInstructions,
+        lowConfidence,
+      };
+
       const systemPrompt = highIntent.hasHighIntent && !session.contact.captured
-        ? buildHighIntentPrompt({
-            businessName: config.businessName,
-            businessContext: vectorSearch.context,
-            detectedIntent: highIntent.matchedKeywords,
-            chatbotTone: validTone
-          })
-        : buildSystemPrompt({
-            businessName: config.businessName,
-            businessContext: vectorSearch.context,
-            chatbotTone: validTone,
-            chatbotGreeting: config.chatbotGreeting,
-            chatbotRestrictions: config.chatbotRestrictions
-          });
+        ? buildHighIntentPrompt({ ...sharedParams, detectedIntent: highIntent.matchedKeywords })
+        : buildSystemPrompt({ ...sharedParams, chatbotGreeting: config.chatbotGreeting, chatbotRestrictions: config.chatbotRestrictions });
 
       // 8. Stream LLM response
       const llm = getLLMProvider();
@@ -582,30 +626,83 @@ export class ChatService {
     }
   }
 
-  private extractContactFromMessage(message: string): {
+  private async extractContactWithLLM(recentMessages: string[]): Promise<{
     hasContact: boolean;
     email?: string;
     phone?: string;
     name?: string;
-    confidence: number;
-  } {
-    const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/;
-    const phoneRegex = /\b(\+?\d{1,3}[-.]?)?\(?\d{3}\)?[-.]?\d{3}[-.]?\d{4}\b/;
-    const nameRegex = /(?:my name is|i'm|i am)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/i;
+  }> {
+    try {
+      const llm = getLLMProvider();
+      const prompt = buildContactExtractionPrompt(recentMessages);
+      const result = await llm.generateResponse({
+        systemPrompt: 'You are a data extraction assistant. Return only valid JSON.',
+        userMessage: prompt,
+        conversationHistory: []
+      });
 
-    const emailMatch = message.match(emailRegex);
-    const phoneMatch = message.match(phoneRegex);
-    const nameMatch = message.match(nameRegex);
+      const parsed = JSON.parse(result.response.trim());
+      const hasContact = !!(parsed.email || parsed.phone);
+      return {
+        hasContact,
+        email: parsed.email ?? undefined,
+        phone: parsed.phone ?? undefined,
+        name: parsed.name ?? undefined,
+      };
+    } catch {
+      // Fall back to regex if LLM extraction fails
+      const text = recentMessages.join(' ');
+      const emailMatch = text.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/);
+      const phoneMatch = text.match(/\b(\+?\d{1,3}[-.]?)?\(?\d{3}\)?[-.]?\d{3}[-.]?\d{4}\b/);
+      const nameMatch = text.match(/(?:my name is|i'm|i am)\s+([A-Za-z]+(?:\s+[A-Za-z]+)?)/i);
+      return {
+        hasContact: !!(emailMatch || phoneMatch),
+        email: emailMatch?.[0],
+        phone: phoneMatch?.[0],
+        name: nameMatch?.[1],
+      };
+    }
+  }
 
-    const hasContact = !!(emailMatch || phoneMatch);
+  private async buildHistoryWithSummary(
+    sessionId: string,
+    limit: number = 10
+  ): Promise<{ summary?: string; history: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> }> {
+    const allMessages = await ChatMessage.find({ sessionId, deletedAt: null })
+      .select('role content')
+      .sort({ timestamp: 1 });
 
-    return {
-      hasContact,
-      email: emailMatch?.[0],
-      phone: phoneMatch?.[0],
-      name: nameMatch?.[1],
-      confidence: hasContact ? 0.9 : 0
-    };
+    if (allMessages.length <= limit) {
+      return {
+        history: allMessages.map(m => ({ role: m.role as 'user' | 'assistant' | 'system', content: m.content }))
+      };
+    }
+
+    // Summarize the early portion, keep the tail as verbatim history
+    const tailStart = allMessages.length - 6;
+    const toSummarise = allMessages.slice(0, tailStart);
+    const tail = allMessages.slice(tailStart);
+
+    try {
+      const llm = getLLMProvider();
+      const summaryPrompt = buildConversationSummaryPrompt(
+        toSummarise.map(m => ({ role: m.role, content: m.content }))
+      );
+      const summaryResult = await llm.generateResponse({
+        systemPrompt: 'You summarize conversations concisely.',
+        userMessage: summaryPrompt,
+        conversationHistory: []
+      });
+
+      return {
+        summary: summaryResult.response.trim(),
+        history: tail.map(m => ({ role: m.role as 'user' | 'assistant' | 'system', content: m.content }))
+      };
+    } catch {
+      return {
+        history: tail.map(m => ({ role: m.role as 'user' | 'assistant' | 'system', content: m.content }))
+      };
+    }
   }
 
   private detectHighIntent(message: string): {
@@ -633,11 +730,8 @@ export class ChatService {
 
   private async captureContactInfo(
     sessionId: string,
-    contactData: {
-      email?: string;
-      phone?: string;
-      name?: string;
-    }
+    contactData: { email?: string; phone?: string; name?: string },
+    webhookUrl?: string
   ): Promise<void> {
     try {
       // 1. Update ChatSession
@@ -706,6 +800,22 @@ export class ChatService {
           sessionId,
           email: contactData.email
         });
+
+        // Fire webhook to business's CRM/integration URL (best-effort)
+        if (webhookUrl) {
+          axios.post(webhookUrl, {
+            event: 'lead.captured',
+            businessId: session.businessId,
+            sessionId,
+            lead: {
+              name: contactData.name,
+              email: contactData.email,
+              phone: contactData.phone,
+            },
+            messageCount: session.messageCount,
+            capturedAt: new Date().toISOString(),
+          }, { timeout: 5000 }).catch(() => {/* best-effort */});
+        }
 
         // Notify the business owner via email (best-effort, non-blocking)
         if (session.businessOwnerEmail) {
@@ -955,6 +1065,8 @@ export class ChatService {
       chatbotTone?: string;
       chatbotGreeting?: string;
       chatbotRestrictions?: string;
+      chatbotCustomInstructions?: string;
+      webhookUrl?: string;
       escalationContact: any;
     };
     reason?: string;

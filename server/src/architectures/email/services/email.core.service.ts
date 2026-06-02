@@ -50,6 +50,20 @@ export interface LeadNotificationParams {
   capturedAt: Date;
 }
 
+export interface WeeklyDigestParams {
+  businessOwnerEmail: string;
+  firstName: string;
+  businessId: string;
+  businessName: string;
+  weekRange: string;
+  totalConversations: number;
+  newLeads: number;
+  totalMessages: number;
+  avgMessagesPerSession: number;
+  topQuestion?: string;
+  newLeadsDetails?: Array<{ name?: string; email?: string; phone?: string }>;
+}
+
 export class EmailCoreService {
   /**
    * Send welcome email to new users
@@ -234,6 +248,37 @@ export class EmailCoreService {
         to: params.businessOwnerEmail,
         error: error.message,
       });
+      throw error;
+    }
+  }
+
+  /**
+   * Send weekly digest to a business owner
+   */
+  async sendWeeklyDigest(params: WeeklyDigestParams): Promise<void> {
+    try {
+      const html = templateService.renderWeeklySummaryEmail({
+        businessId: params.businessId,
+        businessName: params.businessName,
+        firstName: params.firstName,
+        weekRange: params.weekRange,
+        totalConversations: params.totalConversations,
+        newLeads: params.newLeads,
+        totalMessages: params.totalMessages,
+        avgMessagesPerSession: params.avgMessagesPerSession,
+        topQuestion: params.topQuestion,
+        newLeadsDetails: params.newLeadsDetails,
+      });
+
+      await sendEmail({
+        to: params.businessOwnerEmail,
+        subject: `Your weekly report — ${params.businessName}`,
+        html,
+      });
+
+      logger.info('Weekly digest sent', { to: params.businessOwnerEmail, businessName: params.businessName });
+    } catch (error: any) {
+      logger.error('Failed to send weekly digest', { to: params.businessOwnerEmail, error: error.message });
       throw error;
     }
   }

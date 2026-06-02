@@ -32,6 +32,19 @@ export interface LeadNotificationTemplateData {
   capturedAt: Date;
 }
 
+export interface WeeklySummaryTemplateData {
+  businessId: string;
+  businessName: string;
+  firstName: string;
+  weekRange: string;
+  totalConversations: number;
+  newLeads: number;
+  totalMessages: number;
+  avgMessagesPerSession: number;
+  topQuestion?: string;
+  newLeadsDetails?: Array<{ name?: string; email?: string; phone?: string }>;
+}
+
 export class TemplateService {
   private templateCache: Map<string, HandlebarsTemplateDelegate> = new Map();
 
@@ -105,6 +118,16 @@ export class TemplateService {
       sessionId: data.sessionId,
       messageCount: data.messageCount,
       capturedAt: data.capturedAt.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }),
+      currentYear: new Date().getFullYear(),
+    });
+  }
+
+  /**
+   * Render weekly digest email template
+   */
+  renderWeeklySummaryEmail(data: WeeklySummaryTemplateData): string {
+    return this.renderTemplate('weekly-summary', {
+      ...data,
       currentYear: new Date().getFullYear(),
     });
   }

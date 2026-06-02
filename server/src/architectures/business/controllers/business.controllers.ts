@@ -527,11 +527,52 @@ export const getPublicBusinessDetails = async (
  * export default router;
 */
 
+export const getBusinessHealthScore = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id: businessId } = req.params;
+    const business = await businessService.getBusinessById(businessId);
+
+    const checks: Array<{ label: string; achieved: boolean; weight: number }> = [
+      { label: 'Business name set',        achieved: !!business.basicInfo?.businessName,                       weight: 10 },
+      { label: 'Description added',        achieved: !!business.basicInfo?.businessDescription,                weight: 8  },
+      { label: 'Operating hours set',      achieved: !!business.basicInfo?.operatingHours,                     weight: 7  },
+      { label: 'Location set',             achieved: !!business.basicInfo?.location,                           weight: 5  },
+      { label: 'Chatbot tone selected',    achieved: !!business.customerSupport?.chatbotTone,                  weight: 7  },
+      { label: 'Custom greeting added',    achieved: !!business.customerSupport?.chatbotGreeting,              weight: 8  },
+      { label: 'Custom instructions set',  achieved: !!business.customerSupport?.chatbotCustomInstructions,   weight: 6  },
+      { label: 'FAQs added (at least 3)',  achieved: (business.customerSupport?.faqs?.length ?? 0) >= 3,       weight: 15 },
+      { label: 'Refund policy set',        achieved: !!business.customerSupport?.policies?.refundPolicy,       weight: 8  },
+      { label: 'Products/services listed', achieved: !!business.productsServices?.offerings,                  weight: 10 },
+      { label: 'Escalation contact set',   achieved: !!business.contactEscalation?.escalationContact?.email,  weight: 8  },
+      { label: 'Documents uploaded',       achieved: (business.files?.documents?.length ?? 0) > 0,             weight: 8  },
+    ];
+
+    const totalWeight = checks.reduce((sum, c) => sum + c.weight, 0);
+    const achievedWeight = checks.filter(c => c.achieved).reduce((sum, c) => sum + c.weight, 0);
+    const score = Math.round((achievedWeight / totalWeight) * 100);
+
+    const tier = score >= 80 ? 'excellent' : score >= 55 ? 'good' : score >= 30 ? 'fair' : 'incomplete';
+
+    res.status(200).json({
+      success: true,
+      data: {
+        score,
+        tier,
+        checks: checks.map(c => ({ label: c.label, achieved: c.achieved })),
+        vectorStatus: business.vectorInfo?.vectorStatus,
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: { code: 'HEALTH_SCORE_FAILED', message: error.message } });
+  }
+};
+
 export default {
   createBusiness,
   getUserBusinesses,
   getBusinessDetails,
   updateBusiness,
   deleteBusiness,
-  getPublicBusinessDetails
+  getPublicBusinessDetails,
+  getBusinessHealthScore,
 };

@@ -6,6 +6,7 @@ import { createLogger } from '../util/chat.logger.utils';
 const logger = createLogger('chat-rabbitmq');
 
 const EMAIL_EXCHANGE = 'email.exchange';
+const ANALYTICS_EXCHANGE = 'analytics.exchange';
 
 interface ChatRabbitMQ {
   connection: any;
@@ -24,8 +25,9 @@ export async function connectChatRabbitMQ(): Promise<void> {
     state.connection = await amqp.connect(env.RABBITMQ_URL);
     state.channel = await state.connection.createChannel();
 
-    // Assert the email exchange (topic, durable) — email service owns it, we just need it declared
     await state.channel.assertExchange(EMAIL_EXCHANGE, 'topic', { durable: true });
+    // Analytics exchange — consumers can be added later without touching this service
+    await state.channel.assertExchange(ANALYTICS_EXCHANGE, 'topic', { durable: true });
 
     state.isConnected = true;
 
@@ -74,6 +76,30 @@ export async function publishLeadCaptured(data: {
     logger.error('Failed to publish lead.captured event', { error: error.message });
     // Best-effort — do not propagate, lead is already saved in DB
   }
+}
+
+function publishAnalytics(routingKey: string, data: object): void {
+  if (!state.channel || !state.isConnected) return;
+  try {
+    state.channel.publish(
+      ANALYTICS_EXCHANGE,
+      routingKey,
+      Buffer.from(JSON.stringify({ eventId: uuidv4(), eventType: routingKey, timestamp: Date.now(), data })),
+      { persistent: false }
+    );
+  } catch { /* best-effort */ }
+}
+
+export function publishSessionStarted(data: { businessId: string; sessionId: string; visitorId?: string }): void {
+  publishAnalytics('chat.session.started', data);
+}
+
+export function publishSessionEnded(data: { businessId: string; sessionId: string; messageCount: number; durationMs: number }): void {
+  publishAnalytics('chat.session.ended', data);
+}
+
+export function publishMessageSent(data: { businessId: string; sessionId: string; role: 'user' | 'assistant'; tokensUsed?: number }): void {
+  publishAnalytics('chat.message.sent', data);
 }
 
 export async function disconnectChatRabbitMQ(): Promise<void> {

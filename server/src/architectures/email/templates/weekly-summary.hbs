@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      color: #1a1a1a;
+      margin: 0;
+      padding: 0;
+      background-color: #f5f5f5;
+    }
+    .container {
+      max-width: 600px;
+      margin: 40px auto;
+      background: #ffffff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      border: 1px solid #eeeeee;
+    }
+    .header {
+      background: linear-gradient(135deg, #636b2f 0%, #4f5625 100%);
+      padding: 32px 30px;
+      text-align: center;
+      color: #ffffff;
+    }
+    .header-eyebrow {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      opacity: 0.75;
+      margin: 0 0 10px 0;
+    }
+    .header h1 { margin: 0 0 6px 0; font-size: 26px; font-weight: 800; }
+    .header p  { margin: 0; font-size: 14px; opacity: 0.8; }
+    .content { padding: 32px 30px 24px; }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin: 24px 0;
+    }
+    .stat-card {
+      background: #f9fff3;
+      border: 1px solid #bac095;
+      border-radius: 10px;
+      padding: 18px;
+      text-align: center;
+    }
+    .stat-number {
+      font-size: 32px;
+      font-weight: 900;
+      color: #636b2f;
+      display: block;
+      line-height: 1;
+    }
+    .stat-label {
+      font-size: 12px;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 6px;
+    }
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #636b2f;
+      margin: 28px 0 14px 0;
+    }
+    .highlight-row {
+      background: #f9fafb;
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-size: 14px;
+      color: #1a1a1a;
+      margin-bottom: 8px;
+    }
+    .highlight-label {
+      font-size: 11px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .no-data {
+      color: #aaa;
+      font-style: italic;
+      font-size: 13px;
+    }
+    .cta-section {
+      text-align: center;
+      margin: 28px 0 8px;
+    }
+    .btn-primary {
+      display: inline-block;
+      padding: 13px 30px;
+      background-color: #636b2f;
+      color: #ffffff;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 15px;
+      box-shadow: 0 4px 12px rgba(99,107,47,0.3);
+    }
+    .footer {
+      text-align: center;
+      padding: 20px 30px;
+      background-color: #f9fafb;
+      color: #888;
+      font-size: 12px;
+      border-top: 1px solid #eeeeee;
+    }
+    .footer a { color: #636b2f; text-decoration: none; }
+  </style>
+</head>
+<body style="margin:0; padding:0; background-color:#f5f5f5;">
+
+  <div class="container" style="background-color:#ffffff;">
+
+    <div class="header" style="background:linear-gradient(135deg,#636b2f 0%,#4f5625 100%); padding:32px 30px; text-align:center; color:#ffffff;">
+      <p class="header-eyebrow" style="font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase; opacity:0.75; margin:0 0 10px 0;">Weekly Report</p>
+      <h1 style="margin:0 0 6px 0; font-size:26px; font-weight:800;">{{businessName}}</h1>
+      <p style="margin:0; font-size:14px; opacity:0.8;">{{weekRange}}</p>
+    </div>
+
+    <div class="content" style="padding:32px 30px 24px;">
+
+      <p style="font-size:15px; margin:0 0 4px 0; color:#1a1a1a;">Hi {{firstName}}, here's how your AI agent performed this week.</p>
+
+      <table style="width:100%; border-collapse:collapse; margin:24px 0;">
+        <tr>
+          <td style="width:50%; padding:0 6px 0 0; vertical-align:top;">
+            <div style="background:#f9fff3; border:1px solid #bac095; border-radius:10px; padding:18px; text-align:center;">
+              <span style="font-size:32px; font-weight:900; color:#636b2f; display:block; line-height:1;">{{totalConversations}}</span>
+              <span style="font-size:12px; color:#666; text-transform:uppercase; letter-spacing:0.5px; margin-top:6px; display:block;">Conversations</span>
+            </div>
+          </td>
+          <td style="width:50%; padding:0 0 0 6px; vertical-align:top;">
+            <div style="background:#f9fff3; border:1px solid #bac095; border-radius:10px; padding:18px; text-align:center;">
+              <span style="font-size:32px; font-weight:900; color:#636b2f; display:block; line-height:1;">{{newLeads}}</span>
+              <span style="font-size:12px; color:#666; text-transform:uppercase; letter-spacing:0.5px; margin-top:6px; display:block;">New Leads</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="width:50%; padding:12px 6px 0 0; vertical-align:top;">
+            <div style="background:#f5f5f5; border-radius:10px; padding:18px; text-align:center;">
+              <span style="font-size:32px; font-weight:900; color:#1a1a1a; display:block; line-height:1;">{{totalMessages}}</span>
+              <span style="font-size:12px; color:#666; text-transform:uppercase; letter-spacing:0.5px; margin-top:6px; display:block;">Messages Sent</span>
+            </div>
+          </td>
+          <td style="width:50%; padding:12px 0 0 6px; vertical-align:top;">
+            <div style="background:#f5f5f5; border-radius:10px; padding:18px; text-align:center;">
+              <span style="font-size:32px; font-weight:900; color:#1a1a1a; display:block; line-height:1;">{{avgMessagesPerSession}}</span>
+              <span style="font-size:12px; color:#666; text-transform:uppercase; letter-spacing:0.5px; margin-top:6px; display:block;">Avg. msgs/chat</span>
+            </div>
+          </td>
+        </tr>
+      </table>
+
+      {{#if topQuestion}}
+      <p class="section-title" style="font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#636b2f; margin:28px 0 14px 0;">Most Asked This Week</p>
+      <div style="background:#f9fafb; border-radius:8px; padding:14px 16px; font-size:14px; color:#1a1a1a; margin-bottom:8px;">
+        <div style="font-size:11px; color:#888; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Top question</div>
+        "{{topQuestion}}"
+      </div>
+      {{/if}}
+
+      {{#if newLeadsDetails}}
+      <p class="section-title" style="font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#636b2f; margin:28px 0 14px 0;">New Leads This Week</p>
+      {{#each newLeadsDetails}}
+      <div style="background:#f9fafb; border-radius:8px; padding:12px 16px; font-size:14px; color:#1a1a1a; margin-bottom:8px;">
+        <strong>{{this.name}}</strong>
+        {{#if this.email}} &mdash; <a href="mailto:{{this.email}}" style="color:#636b2f; text-decoration:none;">{{this.email}}</a>{{/if}}
+        {{#if this.phone}} &mdash; {{this.phone}}{{/if}}
+      </div>
+      {{/each}}
+      {{/if}}
+
+      <div class="cta-section" style="text-align:center; margin:28px 0 8px;">
+        <a href="https://formachat.com/#/dashboard/analytics/{{businessId}}"
+           class="btn-primary"
+           style="display:inline-block; padding:13px 30px; background-color:#636b2f; color:#ffffff; text-decoration:none; border-radius:6px; font-weight:700; font-size:15px; box-shadow:0 4px 12px rgba(99,107,47,0.3);">
+          View Full Analytics
+        </a>
+      </div>
+
+    </div>
+
+    <div class="footer" style="text-align:center; padding:20px 30px; background-color:#f9fafb; color:#888; font-size:12px; border-top:1px solid #eee;">
+      <p style="margin:4px 0;">&copy; {{currentYear}} FormaChat. All rights reserved.</p>
+      <p style="margin:4px 0;">You're receiving this because you have a FormaChat business profile. <a href="mailto:support@formachat.com" style="color:#636b2f; text-decoration:none;">Unsubscribe</a></p>
+    </div>
+
+  </div>
+</body>
+</html>

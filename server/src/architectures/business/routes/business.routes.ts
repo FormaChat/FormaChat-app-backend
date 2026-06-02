@@ -5,13 +5,14 @@ import {
   ownershipWithActiveCheck, 
   bulkOwnershipMiddleware 
 } from '../middleware/ownershipAndChecks.middleware';
-import { 
+import {
   createBusiness,
   getUserBusinesses,
   getBusinessDetails,
   updateBusiness,
   deleteBusiness,
-  getPublicBusinessDetails
+  getPublicBusinessDetails,
+  getBusinessHealthScore,
 } from '../controllers/business.controllers';
 
 const router: Router = express.Router();
@@ -27,6 +28,8 @@ router.get('/businesses/:id', authMiddleware, ownershipMiddleware, getBusinessDe
 router.put('/businesses/:id', authMiddleware, ownershipWithActiveCheck, updateBusiness);
 
 router.delete('/businesses/:id', authMiddleware, ownershipMiddleware, deleteBusiness);
+
+router.get('/businesses/:id/health-score', authMiddleware, ownershipMiddleware, getBusinessHealthScore);
 
 
 
