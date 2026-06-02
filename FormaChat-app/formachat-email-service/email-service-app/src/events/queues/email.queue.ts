@@ -1,1 +1,0 @@
-// main email queue config
