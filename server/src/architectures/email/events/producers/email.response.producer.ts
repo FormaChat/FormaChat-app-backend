@@ -5,7 +5,7 @@ import { logger } from '../../utils/email.logger.utils';
 /**
  * Valid email types that can be sent
  */
-export type EmailType = 'welcome' | 'otp' | 'password_reset' | 'password_changed' | 'account_deactivated' | 'feedback';
+export type EmailType = 'welcome' | 'otp' | 'password_reset' | 'password_changed' | 'account_deactivated' | 'feedback' | 'lead_notification';
 
 /**
  * Email delivery status

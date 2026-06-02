@@ -8,8 +8,8 @@ const logger = createLogger('chat-rabbitmq');
 const EMAIL_EXCHANGE = 'email.exchange';
 
 interface ChatRabbitMQ {
-  connection: amqp.Connection | null;
-  channel: amqp.Channel | null;
+  connection: any;
+  channel: any;
   isConnected: boolean;
 }
 
