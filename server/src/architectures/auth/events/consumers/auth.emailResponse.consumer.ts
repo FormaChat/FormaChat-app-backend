@@ -337,7 +337,9 @@ export class EmailResponseService {
   /**
    * Main message handler for email responses
    */
-  public async handleEmailResponse(message: EmailResponseMessage): Promise<void> {
+  public async handleEmailResponse(rawMessage: any): Promise<void> {
+    // RabbitMQ messages are wrapped in an envelope: { eventId, eventType, timestamp, data }
+    const message: EmailResponseMessage = rawMessage?.data ?? rawMessage;
     const { eventId, userId, email, emailType, status } = message;
 
     logger.info('📨 Received email response from email service', {

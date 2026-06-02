@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
+import { publishLeadCaptured } from '../config/chat.rabbitmq';
 import { ChatSession, ChatMessage, ContactLead } from '../model/chat.model';
 import { createLogger } from '../util/chat.logger.utils';
 import { checkDailyLimit, incrementSessionCount } from '../config/chat.redis.config';
@@ -78,6 +79,8 @@ export class ChatService {
       const session = new ChatSession({
         sessionId,
         businessId,
+        businessOwnerEmail: config.businessOwnerEmail,
+        businessName: config.businessName,
         visitorId: generatedVisitorId,
         status: 'active',
         startedAt: new Date(),
@@ -703,6 +706,21 @@ export class ChatService {
           sessionId,
           email: contactData.email
         });
+
+        // Notify the business owner via email (best-effort, non-blocking)
+        if (session.businessOwnerEmail) {
+          publishLeadCaptured({
+            businessId: session.businessId,
+            businessOwnerEmail: session.businessOwnerEmail,
+            businessName: session.businessName || session.businessId,
+            leadName: contactData.name,
+            leadEmail: contactData.email,
+            leadPhone: contactData.phone,
+            sessionId,
+            messageCount: session.messageCount,
+            capturedAt: new Date(),
+          }).catch(() => { /* best-effort */ });
+        }
       }
 
     } catch (error: any) {
@@ -931,6 +949,7 @@ export class ChatService {
     allowed: boolean;
     config?: {
       namespace: string;
+      businessOwnerEmail: string;
       businessName: string;
       businessDescription: string;
       chatbotTone?: string;

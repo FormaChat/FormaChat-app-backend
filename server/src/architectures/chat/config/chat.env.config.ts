@@ -58,7 +58,7 @@ interface EnvConfig {
   LLM_PROVIDER: string;
 
   INTERNAL_SERVICE_SECRET: string;
-  
+  RABBITMQ_URL: string;
 }
 
 class EnvironmentValidator {
@@ -153,6 +153,7 @@ class EnvironmentValidator {
     ) || 'groq'
     
     const internalServiceSecret = this.getEnv('INTERNAL_SERVICE_SECRET', true);
+    const rabbitmqUrl = this.getEnv('RABBITMQ_URL', true);
     
     // Validate values
     if (dailySessionLimit < 1) {
@@ -203,6 +204,7 @@ class EnvironmentValidator {
       BUSINESS_SERVICE_URL: businessServiceUrl,
       LLM_PROVIDER: llmProvider,
       INTERNAL_SERVICE_SECRET: internalServiceSecret,
+      RABBITMQ_URL: rabbitmqUrl,
     };
   }
 }

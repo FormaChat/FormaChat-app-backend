@@ -24,7 +24,7 @@ interface RabbitMQMessage {
 /**
  * Valid email types that can be sent
  */
-type EmailType = 'otp' | 'password_reset' | 'password_changed' | 'welcome' | 'account_deactivated' | 'feedback';
+type EmailType = 'otp' | 'password_reset' | 'password_changed' | 'welcome' | 'account_deactivated' | 'feedback' | 'lead_notification';
 
 
 
@@ -99,6 +99,7 @@ export async function startAuthEmailConsumer(): Promise<void> {
     // Consume from user.deactivated queue
     await consumeMessages('authUserDeactivated', handleUserDeactivated);
     await consumeMessages('authFeedbackSubmitted', handleFeedbackSubmitted);
+    await consumeMessages('chatLeadCaptured', handleLeadCaptured);
     logger.info('✅ All Auth email consumers started successfully');
   } catch (error: any) {
     logger.error('❌ Failed to start Auth email consumers:', error);
@@ -395,6 +396,41 @@ async function handleFeedbackSubmitted(message: RabbitMQMessage): Promise<void> 
       eventId,
       from: data.email,
       userId: data.userId,
+      retryCount
+    });
+  });
+}
+
+/**
+ * Handler for lead.captured events
+ * Sends an instant notification to the business owner when a new lead is captured
+ */
+async function handleLeadCaptured(message: RabbitMQMessage): Promise<void> {
+  await handleWithRetry(message, 'lead_notification', async (msg) => {
+    const { eventId, data } = msg;
+    const retryCount = msg.retryCount || 0;
+
+    logger.info('Processing lead.captured event', {
+      eventId,
+      businessId: data.businessId,
+      businessOwnerEmail: data.businessOwnerEmail,
+      retryCount
+    });
+
+    await emailCoreService.sendLeadNotificationEmail({
+      businessOwnerEmail: data.businessOwnerEmail,
+      businessName: data.businessName,
+      leadName: data.leadName,
+      leadEmail: data.leadEmail,
+      leadPhone: data.leadPhone,
+      sessionId: data.sessionId,
+      messageCount: data.messageCount,
+      capturedAt: new Date(data.capturedAt),
+    });
+
+    logger.info('✅ Lead notification email sent successfully', {
+      eventId,
+      businessOwnerEmail: data.businessOwnerEmail,
       retryCount
     });
   });

@@ -39,6 +39,17 @@ export interface AccountDeactivatedParams {
   reason?: string;
 }
 
+export interface LeadNotificationParams {
+  businessOwnerEmail: string;
+  businessName: string;
+  leadName?: string;
+  leadEmail?: string;
+  leadPhone?: string;
+  sessionId: string;
+  messageCount: number;
+  capturedAt: Date;
+}
+
 export class EmailCoreService {
   /**
    * Send welcome email to new users
@@ -189,6 +200,39 @@ export class EmailCoreService {
       logger.error('Failed to send account deactivated email', {
         email: params.email,
         error: error.message
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Send lead notification email to business owner
+   */
+  async sendLeadNotificationEmail(params: LeadNotificationParams): Promise<void> {
+    try {
+      logger.info('Sending lead notification email', { to: params.businessOwnerEmail, businessName: params.businessName });
+
+      const html = templateService.renderLeadNotificationEmail({
+        businessName: params.businessName,
+        leadName: params.leadName,
+        leadEmail: params.leadEmail,
+        leadPhone: params.leadPhone,
+        sessionId: params.sessionId,
+        messageCount: params.messageCount,
+        capturedAt: params.capturedAt,
+      });
+
+      await sendEmail({
+        to: params.businessOwnerEmail,
+        subject: `🎯 New Lead Captured — ${params.businessName}`,
+        html,
+      });
+
+      logger.info('Lead notification email sent successfully', { to: params.businessOwnerEmail });
+    } catch (error: any) {
+      logger.error('Failed to send lead notification email', {
+        to: params.businessOwnerEmail,
+        error: error.message,
       });
       throw error;
     }

@@ -24,7 +24,8 @@ class RabbitMQConnection {
     authPasswordChanged: 'email.consumer.password.changed',
     authUserDeactivated: 'email.consumer.user.deactivated',
     authFeedbackSubmitted: 'email.consumer.feedback.submitted',
-    
+    chatLeadCaptured: 'email.consumer.lead.captured',
+
     // Producer queues - sending messages to auth services
     authEmailResponse: 'email.producer.email.response',
     
@@ -42,6 +43,7 @@ class RabbitMQConnection {
     authPasswordChanged: 'password.changed',
     authUserDeactivated: 'user.deactivated',
     authFeedbackSubmitted: 'feedback.submitted',
+    chatLeadCaptured: 'lead.captured',
   };
   
   constructor() {}
@@ -188,7 +190,14 @@ class RabbitMQConnection {
       this.exchanges.email,
       this.routingKeys.authFeedbackSubmitted
     );
-    
+
+    await this.channel.assertQueue(this.queues.chatLeadCaptured, options);
+    await this.channel.bindQueue(
+      this.queues.chatLeadCaptured,
+      this.exchanges.email,
+      this.routingKeys.chatLeadCaptured
+    );
+
     logger.info('Consumer queues declared and bound');
   }
 

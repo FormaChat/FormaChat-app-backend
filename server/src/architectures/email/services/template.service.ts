@@ -22,6 +22,16 @@ export interface AccountDeactivatedTemplateData {
   reason?: string;
 }
 
+export interface LeadNotificationTemplateData {
+  businessName: string;
+  leadName?: string;
+  leadEmail?: string;
+  leadPhone?: string;
+  sessionId: string;
+  messageCount: number;
+  capturedAt: Date;
+}
+
 export class TemplateService {
   private templateCache: Map<string, HandlebarsTemplateDelegate> = new Map();
 
@@ -80,6 +90,22 @@ export class TemplateService {
       deactivatedAt: data.deactivatedAt.toLocaleDateString(),
       reason: data.reason || 'Account deactivation',
       currentYear: new Date().getFullYear()
+    });
+  }
+
+  /**
+   * Render lead notification email template
+   */
+  renderLeadNotificationEmail(data: LeadNotificationTemplateData): string {
+    return this.renderTemplate('lead-captured', {
+      businessName: data.businessName,
+      leadName: data.leadName || 'Unknown Visitor',
+      leadEmail: data.leadEmail || null,
+      leadPhone: data.leadPhone || null,
+      sessionId: data.sessionId,
+      messageCount: data.messageCount,
+      capturedAt: data.capturedAt.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }),
+      currentYear: new Date().getFullYear(),
     });
   }
 

@@ -54,6 +54,9 @@ export interface IChatSession extends Document {
     ipAddress?: string;
     referrer?: string;
 
+    businessOwnerEmail?: string; // Denormalized from business profile for lead notifications
+    businessName?: string;       // Denormalized for display purposes
+
     //Flags
     hasUnreadMessages: boolean; // For business owner dashboard
     isStarred: boolean; // owner can flag important sessions
@@ -248,6 +251,8 @@ const ChatSessionSchema: Schema = new Schema({
     userAgent: String,
     ipAddress: String,
     referrer: String,
+    businessOwnerEmail: { type: String },
+    businessName: { type: String },
     hasUnreadMessages: {
         type: Boolean,
         default: false,

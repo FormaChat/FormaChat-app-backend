@@ -62,6 +62,7 @@ export const getBusinessChatConfig = async (
         vectorStatus: business.vectorInfo.vectorStatus,
 
         // BUSINESS CONTEXT
+        businessOwnerEmail: business.userEmail,
         businessName: business.basicInfo.businessName,
         businessDescription: business.basicInfo.businessDescription,
         businessType: business.basicInfo.businessType,
