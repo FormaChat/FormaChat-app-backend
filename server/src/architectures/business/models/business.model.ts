@@ -289,16 +289,13 @@ const BusinessSchema: Schema = new Schema({
   timestamps: true
 });
 
-BusinessSchema.pre('save', function(this: IBusinessDocument, next: (err?: Error) => void) {
-  // Set namespace on creation
+BusinessSchema.pre('save', function(this: IBusinessDocument) {
   if (this.isNew) {
     this.vectorInfo.namespace = `business_${this._id}`;
   }
 
-  // Sync freezeInfo isFrozen with isActive
   if (this.isModified('isActive')) {
     if (!this.isActive && !this.freezeInfo?.isFrozen) {
-      // Business deactivated - auto populate freezeInfo
       this.freezeInfo = {
         isFrozen: true,
         reason: this.freezeInfo?.reason || 'admin_action',
@@ -310,19 +307,14 @@ BusinessSchema.pre('save', function(this: IBusinessDocument, next: (err?: Error)
     }
   }
 
-  //Update vector status when frozen/unfrozen
-
   if (this.isModified('isActive') || this.isModified('freezeInfo.isFrozen')) {
     if (!this.isActive || this.freezeInfo?.isFrozen) {
       this.vectorInfo.vectorStatus = 'frozen';
     } else if (this.vectorInfo.vectorStatus === 'frozen') {
-      // Restore previous status or set to pending for re-sync
       this.vectorInfo.vectorStatus = 'pending';
       this.vectorInfo.needsUpdate = true;
     }
   }
-
-  next()
 });
 
 
