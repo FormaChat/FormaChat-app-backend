@@ -9,6 +9,14 @@ dotenv.config();
 
 const app: Express = express();
 
+// Render (and most PaaS hosts) sit behind a reverse proxy. Without this,
+// req.ip resolves to the proxy's own address instead of the real visitor
+// IP from X-Forwarded-For - which is why IPs in logs/audit trails/session
+// records were showing up wrong (not actually "truncated", just the wrong
+// address entirely). `1` trusts exactly one hop, matching a single
+// reverse proxy in front of the app.
+app.set('trust proxy', 1);
+
 // Security headers
 app.use(
   helmet({

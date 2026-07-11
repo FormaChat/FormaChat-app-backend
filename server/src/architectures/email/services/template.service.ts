@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import handlebars from 'handlebars';
 import { logger } from '../utils/email.logger.utils';
+import { env } from '../config/email.env';
 
 export interface WelcomeTemplateData {
   firstName?: string;
@@ -160,7 +161,8 @@ export class TemplateService {
         this.templateCache.set(templateName, template);
       }
 
-      return template(data);
+      // Every template gets the banner automatically - no need to pass it per call site
+      return template({ emailBannerUrl: env.EMAIL_BANNER_URL, ...data });
     } catch (error: any) {
       logger.error('Failed to render template', {
         templateName,
