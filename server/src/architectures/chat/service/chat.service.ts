@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
 import { publishLeadCaptured, publishSessionStarted, publishSessionEnded, publishMessageSent } from '../config/chat.rabbitmq';
+import { webhookService } from '../../business/services/webhook.service';
 import { ChatSession, ChatMessage, ContactLead } from '../model/chat.model';
 import { createLogger } from '../util/chat.logger.utils';
 import { checkDailyLimit, incrementSessionCount } from '../config/chat.redis.config';
@@ -109,6 +110,7 @@ export class ChatService {
 
       await session.save();
       publishSessionStarted({ businessId, sessionId, visitorId: generatedVisitorId });
+      webhookService.triggerEvent(businessId, 'session.started', { sessionId, visitorId: generatedVisitorId }).catch(() => {});
 
       // 5. Increment Redis session counter
       await incrementSessionCount(businessId);
@@ -216,6 +218,11 @@ export class ChatService {
       session.endedAt = new Date();
       await session.save();
       publishSessionEnded({ businessId: session.businessId, sessionId, messageCount: session.messageCount, durationMs: duration });
+      webhookService.triggerEvent(session.businessId, 'session.ended', {
+        sessionId,
+        messageCount: session.messageCount,
+        durationMs: duration,
+      }).catch(() => {});
 
       logger.info('[Session] Ended', {
         sessionId,
@@ -801,7 +808,9 @@ export class ChatService {
           email: contactData.email
         });
 
-        // Fire webhook to business's CRM/integration URL (best-effort)
+        // Legacy: fire unsigned webhook to the simple `webhookUrl` wizard field
+        // (best-effort). Kept for backward compatibility - businesses that
+        // never created a real Webhook record still get this.
         if (webhookUrl) {
           axios.post(webhookUrl, {
             event: 'lead.captured',
@@ -816,6 +825,19 @@ export class ChatService {
             capturedAt: new Date().toISOString(),
           }, { timeout: 5000 }).catch(() => {/* best-effort */});
         }
+
+        // New: signed, retried, logged delivery to any properly-registered
+        // Webhook records for this business (see Webhooks dashboard).
+        webhookService.triggerEvent(session.businessId, 'lead.captured', {
+          sessionId,
+          lead: {
+            name: contactData.name,
+            email: contactData.email,
+            phone: contactData.phone,
+          },
+          messageCount: session.messageCount,
+          capturedAt: new Date().toISOString(),
+        }).catch(() => {});
 
         // Notify the business owner via email (best-effort, non-blocking)
         if (session.businessOwnerEmail) {

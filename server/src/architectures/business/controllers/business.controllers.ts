@@ -469,7 +469,8 @@ export const getPublicBusinessDetails = async (
       basicInfo: business.basicInfo,
       chatbotGreeting: business.customerSupport?.chatbotGreeting,
       isActive: business.isActive,
-      freezeInfo: business.freezeInfo
+      freezeInfo: business.freezeInfo,
+      widgetConfig: business.widgetConfig
     };
 
     res.status(200).json({

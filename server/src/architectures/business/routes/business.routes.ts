@@ -14,6 +14,15 @@ import {
   getPublicBusinessDetails,
   getBusinessHealthScore,
 } from '../controllers/business.controllers';
+import {
+  listWebhooks,
+  createWebhook,
+  updateWebhook,
+  deleteWebhook,
+  listDeliveries,
+  retryDelivery,
+  listWebhookEvents,
+} from '../controllers/webhook.controllers';
 
 const router: Router = express.Router();
 
@@ -31,6 +40,13 @@ router.delete('/businesses/:id', authMiddleware, ownershipMiddleware, deleteBusi
 
 router.get('/businesses/:id/health-score', authMiddleware, ownershipMiddleware, getBusinessHealthScore);
 
-
+// Webhooks
+router.get('/webhook-events', authMiddleware, listWebhookEvents);
+router.get('/businesses/:id/webhooks', authMiddleware, ownershipMiddleware, listWebhooks);
+router.post('/businesses/:id/webhooks', authMiddleware, ownershipMiddleware, createWebhook);
+router.patch('/businesses/:id/webhooks/:webhookId', authMiddleware, ownershipMiddleware, updateWebhook);
+router.delete('/businesses/:id/webhooks/:webhookId', authMiddleware, ownershipMiddleware, deleteWebhook);
+router.get('/businesses/:id/webhooks/:webhookId/deliveries', authMiddleware, ownershipMiddleware, listDeliveries);
+router.post('/businesses/:id/webhooks/deliveries/:deliveryId/retry', authMiddleware, ownershipMiddleware, retryDelivery);
 
 export default router;

@@ -50,6 +50,11 @@ export interface IBusinessDocument extends Document {
     chatbotCustomInstructions?: string;
   };
   webhookUrl?: string;
+  widgetConfig?: {
+    primaryColor?: string;
+    position?: 'bottom-left' | 'bottom-right';
+    avatarUrl?: string;
+  };
   contactEscalation: {
     contactMethods: Array<{
       method: string;
@@ -208,6 +213,11 @@ const BusinessSchema: Schema = new Schema({
     chatbotCustomInstructions: { type: String, maxlength: 1000 }
   },
   webhookUrl: { type: String, trim: true },
+  widgetConfig: {
+    primaryColor: { type: String, trim: true, match: /^#[0-9a-fA-F]{6}$/ },
+    position: { type: String, enum: ['bottom-left', 'bottom-right'], default: 'bottom-right' },
+    avatarUrl: { type: String, trim: true },
+  },
   contactEscalation: {
     contactMethods: [{
       method: {

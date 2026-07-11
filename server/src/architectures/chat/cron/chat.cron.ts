@@ -4,6 +4,7 @@ import { createLogger } from '../util/chat.logger.utils';
 import { ChatSession, ChatMessage, ContactLead } from '../model/chat.model';
 import Business from '../../business/models/business.model';
 import { emailCoreService } from '../../email/services/email.core.service';
+import { webhookService } from '../../business/services/webhook.service';
 
 const logger = createLogger('cron-scheduler');
 
@@ -102,11 +103,24 @@ export function setupCronJobs() {
     }
   });
 
+  // Every 5 minutes — retry webhook deliveries whose backoff window has elapsed
+  cron.schedule('*/5 * * * *', async () => {
+    try {
+      const { processed } = await webhookService.processDueRetries();
+      if (processed > 0) {
+        logger.info('[Cron] Webhook retries processed', { processed });
+      }
+    } catch (error: any) {
+      logger.error('[Cron] Webhook retry processing failed', { message: error.message });
+    }
+  });
+
   logger.info('[Cron] ✓ Jobs scheduled successfully', {
     jobs: [
       'Session cleanup (hourly)',
       'Permanent session deletion (daily at 3am)',
-      'Weekly digest (Monday 8am)'
+      'Weekly digest (Monday 8am)',
+      'Webhook delivery retries (every 5 minutes)'
     ]
   });
 }

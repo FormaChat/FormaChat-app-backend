@@ -119,16 +119,18 @@ Still organized as 4 domains (`auth`, `business`, `chat`, `email`) each with the
 
 ## 6. Webhooks
 
+**Full build log:** `feature6-10-11.md`.
+
 ### Backend
-- [x] **Basic webhook firing** — `webhookUrl` field exists on the business model and fires a best-effort `axios.post` on lead capture.
-- [ ] **Dedicated Webhook model** — Not built (url/events[]/secret/delivery log).
-- [ ] **HMAC-SHA256 signing** — Not built.
-- [ ] **Retry with exponential backoff** — Not built.
-- [ ] **More webhook events** (`session.started`, `handoff.requested`, `usage.limit.warning`) — Not built.
+- [x] **Basic webhook firing** — `webhookUrl` field exists on the business model and fires a best-effort, unsigned `axios.post` on lead capture. Kept as-is for backward compatibility — not removed.
+- [x] **Dedicated Webhook model** — Built (`business/models/webhook.model.ts` + `webhookDelivery.model.ts`): url/events[]/secret/delivery log with status/attempt tracking.
+- [x] **HMAC-SHA256 signing** — Built. Every delivery to a registered `Webhook` is signed (`X-FormaChat-Signature`) with a per-webhook secret shown once on creation.
+- [x] **Retry with exponential backoff** — Built. 3 total attempts (immediate, +5min, +30min), driven by a 5-minute cron job in `chat.cron.ts`.
+- [x] **More webhook events** — `session.started` and `session.ended` now fire alongside `lead.captured`. (`handoff.requested`/`usage.limit.warning` still deferred — depend on the unbuilt handoff/billing features.)
 
 ### Frontend
 - [x] **webhookUrl field in business wizard** — Present in both `create.ts` and `edit.ts`, paired with the basic firing above.
-- [ ] **Webhook dashboard** — register/edit/delete webhooks, view delivery history, re-trigger failed deliveries. Not built — blocked on the backend Webhook model above.
+- [x] **Webhook dashboard** — Built on the Channels detail page: list/add/delete webhooks, per-webhook delivery history modal with manual retry, one-time secret reveal on creation.
 
 ---
 
@@ -170,22 +172,23 @@ Still organized as 4 domains (`auth`, `business`, `chat`, `email`) each with the
 
 ## 10. Widget, Channels & Embed UX
 
-No major backend counterpart yet beyond the chat API itself.
+**Full build log:** `feature6-10-11.md`.
 
-- [ ] **Channels page live test panel** — Partially built. "Launch Simulator" opens a popup window (`window.open`), not an embedded inline panel as planned.
-- [ ] **Widget customization** (colors, position, avatar, greeting via dashboard) and **CDN-hosted standalone widget JS** — carried over from the original `plan.md`; not independently re-verified in this sweep, but no evidence of either turned up while reviewing the frontend wizard or widget files. Treat as still not built until re-checked.
+- [x] **Channels page live test panel** — Built. "Launch Simulator" now toggles an inline, lazy-loaded `<iframe>` panel in the "Test Your Bot" card instead of opening a popup window.
+- [x] **Widget customization** — Built, with a caveat: `widgetConfig` (`primaryColor`, `position`, `avatarUrl`) added to the business model and exposed on the public chat endpoint; new "Widget Appearance" card on the Channels detail page; `chat-widget.ts` applies `primaryColor` (with an auto-darkened hover shade) and renders `avatarUrl` in the chat header. `position` is saved but has **no visible effect yet** — the current embed is an edge-to-edge iframe with no floating launcher bubble to position; that only becomes meaningful once the CDN-hosted widget below exists.
+- [ ] **CDN-hosted standalone widget JS** — Still not attempted. This is a packaging/deployment decision (separate build target, CDN hosting choice, versioning strategy), not a code gap — needs your input before it's buildable. See `feature6-10-11.md` §10 for the specifics needed.
 
 ---
 
 ## 11. Frontend — Copy & Beta Cleanup
 
-No backend counterpart — pure content/copy changes.
+No backend counterpart — pure content/copy changes. **Full build log:** `feature6-10-11.md`.
 
-- [ ] **register.ts button text** — Still says **"Start Free Beta Access"** (`register.ts:299`). Not changed.
-- [ ] **home.ts beta badge** — Badge markup/text removed, but the `.beta-badge` CSS class is still defined and unused — needs a cleanup pass, and worth double-checking no other beta copy remains on the page.
+- [x] **register.ts button text** — Fixed. Was `"Start Free Beta Access"` in the post-error button-reset text (inconsistent with the initial `"Create Free Account"` text) — now consistent everywhere.
+- [x] **home.ts beta badge** — Removed the dead `.beta-badge` CSS rule (confirmed it was never applied to any element).
 - [x] **index.html "no credit card" text** — Already updated, no "beta access" wording.
 - [x] **dashboard/home.ts cards** — "Beta Perks" card is gone; "What's Live Now" and "Coming Soon" cards are accurate to current build state.
-- [ ] **Page title** — `<title>` tag is updated, but there's still a hidden `<h1>Formachat - AI Customer Support</h1>` on the page using the old copy — should be updated to match.
+- [x] **Page title** — Hidden `<h1>` updated to match the `<title>` tag copy.
 
 ---
 
@@ -193,7 +196,7 @@ No backend counterpart — pure content/copy changes.
 
 No direct backend counterpart — pure frontend UX work.
 
-- [ ] **Toast / notification system** — Partially built. `toast.ts` is used in business edit/delete and settings, but not in register's OTP resend or the logout flow — inconsistent coverage.
+- [x] **Toast / notification system** — Redesigned (light-olive card, colored bottom border — green success / red error / olive info) and rolled out to login, register, forgot-password, and verify-email, replacing their inline red/green `<div>`s. `magic-login.ts` deliberately kept inline (its whole page content is the status message, no form to pop a toast over). Business edit/delete and settings already used the old version; now all consistent with the new design. See `feature1.md`/`feature6-10-11.md` for detail.
 - [ ] **Empty state improvements** — Not built. Still a single message + CTA, no step-by-step checklist.
 - [ ] **Mobile navigation** — Not built. Sidebar is still a hamburger dropdown at all widths, no bottom nav bar on mobile.
 - [ ] **404 page** — Not built. Unknown routes just redirect to `/`.
