@@ -8,53 +8,63 @@ import { createLogger } from '../utils/auth.logger.utils';
 
 const logger = createLogger('login-controller');
 
-export class LoginController {
-  /**
-   * Revoke existing sessions, create a new one, and build the standard
-   * login-success response body. Shared by password login and 2FA-verified login.
-   */
-  private async completeLogin(user: IUser, ipAddress: string, userAgent: string) {
-    logger.info('completeLogin: start', { userId: user.id });
+/**
+ * Revoke existing sessions, create a new one, and build the standard
+ * login-success response body. Shared by password login, 2FA-verified login,
+ * and magic-link login.
+ *
+ * Deliberately a plain module-level function, not a class method: this file's
+ * route handlers are registered as bare function references (e.g.
+ * `asyncHandler(loginController.login)`), which strips `this`. A prior version
+ * of this function lived as `LoginController.completeLogin` and was called via
+ * `this.completeLogin(...)`, which crashed every login with
+ * "Cannot read properties of undefined (reading 'completeLogin')" since `this`
+ * was undefined at call time. Keeping this as a standalone function sidesteps
+ * the whole class of bug, matching how the rest of this codebase avoids `this`.
+ */
+async function completeLogin(user: IUser, ipAddress: string, userAgent: string) {
+  logger.info('completeLogin: start', { userId: user.id });
 
-    try {
-      await sessionService.revokeAllUserSessions(user.id, {
-        ipAddress,
-        userAgent,
-        reason: 'New login from different location'
-      });
-      logger.info('completeLogin: sessions revoked', { userId: user.id });
-    } catch (revokeError: any) {
-      logger.warn('Failed to revoke old sessions (non-critical)', {
-        error: revokeError.message
-      });
-    }
-
-    let tokens;
-    try {
-      tokens = await sessionService.createSession(user.id, user.email, { userAgent, ipAddress });
-      logger.info('completeLogin: session created', { userId: user.id });
-    } catch (createError: any) {
-      logger.error('completeLogin: createSession failed', {
-        userId: user.id,
-        message: createError?.message,
-        name: createError?.name,
-        stack: createError?.stack
-      });
-      throw createError;
-    }
-
-    const userData = {
-      id: user.id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      isVerified: user.isVerified,
-      lastLoginAt: user.lastLoginAt
-    };
-
-    return { user: userData, tokens };
+  try {
+    await sessionService.revokeAllUserSessions(user.id, {
+      ipAddress,
+      userAgent,
+      reason: 'New login from different location'
+    });
+    logger.info('completeLogin: sessions revoked', { userId: user.id });
+  } catch (revokeError: any) {
+    logger.warn('Failed to revoke old sessions (non-critical)', {
+      error: revokeError.message
+    });
   }
 
+  let tokens;
+  try {
+    tokens = await sessionService.createSession(user.id, user.email, { userAgent, ipAddress });
+    logger.info('completeLogin: session created', { userId: user.id });
+  } catch (createError: any) {
+    logger.error('completeLogin: createSession failed', {
+      userId: user.id,
+      message: createError?.message,
+      name: createError?.name,
+      stack: createError?.stack
+    });
+    throw createError;
+  }
+
+  const userData = {
+    id: user.id,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    isVerified: user.isVerified,
+    lastLoginAt: user.lastLoginAt
+  };
+
+  return { user: userData, tokens };
+}
+
+export class LoginController {
   /**
    * User login with email and password
    */
@@ -149,7 +159,7 @@ export class LoginController {
         });
       }
 
-      const { user: userData, tokens } = await this.completeLogin(loginResult.user, ipAddress, userAgent);
+      const { user: userData, tokens } = await completeLogin(loginResult.user, ipAddress, userAgent);
 
       // Log successful login
       logger.info('User logged in successfully', {
@@ -219,7 +229,7 @@ export class LoginController {
         });
       }
 
-      const { user: userData, tokens } = await this.completeLogin(user, ipAddress, userAgent);
+      const { user: userData, tokens } = await completeLogin(user, ipAddress, userAgent);
 
       await AuditService.logAuthEvent({
         userId: user.id,
@@ -328,7 +338,7 @@ export class LoginController {
         });
       }
 
-      const { user: userData, tokens } = await this.completeLogin(user, ipAddress, userAgent);
+      const { user: userData, tokens } = await completeLogin(user, ipAddress, userAgent);
 
       await AuditService.logAuthEvent({
         userId: user.id,

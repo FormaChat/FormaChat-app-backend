@@ -1,12 +1,14 @@
 # Feature 1 — Auth & Account
 
-## Post-deploy incident: login fails 500 immediately after password verifies (IN PROGRESS, 2026-07-11)
+## Post-deploy incident: login fails 500 immediately after password verifies (ROOT-CAUSED + FIXED, 2026-07-11)
 
-New logs (two different real accounts, both correctly-passworded) show a consistent pattern unrelated to the idempotency crash below: `"User login successful"` logs, then `"Login error:"` fires **~1ms later** — too fast to be a DB/network call, meaning something purely synchronous throws immediately after `userService.loginUser()` returns success, somewhere in the new post-login code (2FA gate or `completeLogin()`). Two problems blocked diagnosis:
-1. `logger.error('Login error:', error)` passed a raw `Error` object as log metadata — `Error` objects don't serialize to JSON (message/stack are non-enumerable), so the logs showed an empty `{}` instead of the actual error. Fixed: now explicitly logs `{message, name, stack}` in `login()`, `completeLogin()`, `verifyTwoFactorLogin()`, `requestMagicLink()`, `verifyMagicLink()`.
-2. Added step-level `logger.info` breadcrumbs inside `completeLogin()` (`start` → `sessions revoked` → `session created`) at `info` level specifically (not `debug`, which their `LOG_LEVEL=info` config would silently filter out) so the next attempt shows exactly which step it reaches before dying.
+**Root cause confirmed via the improved logging:** `TypeError: Cannot read properties of undefined (reading 'completeLogin')`. This was introduced by this session's own refactor, not a pre-existing bug. `completeLogin` had been extracted as a `private` method on `LoginController` and called via `this.completeLogin(...)` from `login()`, `verifyTwoFactorLogin()`, and `verifyMagicLink()`. But every route in this file is registered as a bare function reference (`asyncHandler(loginController.login)` etc. in `auth.login.routes.ts`) — that strips the `this` binding, so at call time `this` was `undefined`, and `this.completeLogin` threw immediately (explaining the ~1ms gap between "password verified" and "Login error" in the logs: it's a synchronous property-access crash, not a slow I/O failure).
 
-**Not yet root-caused** — waiting on the next log capture (with real error detail this time) to confirm. Leading candidates given the instant timing: something synchronous throwing before any `await` in the 2FA-check branch or at the very top of `completeLogin`, or a fast MongoDB duplicate-key rejection (E11000) from the `{userId, isRevoked:false}` unique partial index on `RefreshTokenModel` if a revoke-then-create race leaves a stale non-revoked token. Needs the actual error message to confirm rather than more guessing.
+The rest of this codebase never uses `this` inside controllers (plain functions calling imported singleton services) specifically to avoid this exact footgun — this refactor was the one place that broke that convention.
+
+**Fix:** moved `completeLogin` out of the class entirely into a plain module-level `async function` in the same file, and changed all three call sites from `this.completeLogin(...)` to `completeLogin(...)`. No `.bind()` gymnastics needed, and it can never regress this way again since there's no `this` to lose.
+
+**Diagnostic improvements kept from the investigation** (useful regardless): `logger.error` calls in this file now explicitly log `{message, name, stack}` instead of passing a raw `Error` object (which silently serializes to `{}` in the JSON logger — this cost real time misdiagnosing the issue, since the first two log captures showed no error detail at all). Step-level `logger.info` breadcrumbs remain inside `completeLogin()`.
 
 ## Post-deploy incident: server crash on missing idempotency key (fixed 2026-07-11)
 
