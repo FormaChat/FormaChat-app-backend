@@ -29,7 +29,10 @@ export const idempotencyMiddleware = async (
       method: req.method,
       receivedHeaders: Object.keys(req.headers)
     });
-    throw new AuthError('Idempotency key required', 400, 'MISSING_IDEMPOTENCY_KEY');
+    // This middleware is registered directly (not wrapped in asyncHandler), and it's async -
+    // in Express 4, throwing from an async middleware produces an unhandled promise rejection
+    // instead of an error response, which crashes the whole process. Must go through next().
+    return next(new AuthError('Idempotency key required', 400, 'MISSING_IDEMPOTENCY_KEY'));
   }
 
   try {
