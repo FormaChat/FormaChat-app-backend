@@ -14,19 +14,34 @@ export class LoginController {
    * login-success response body. Shared by password login and 2FA-verified login.
    */
   private async completeLogin(user: IUser, ipAddress: string, userAgent: string) {
+    logger.info('completeLogin: start', { userId: user.id });
+
     try {
       await sessionService.revokeAllUserSessions(user.id, {
         ipAddress,
         userAgent,
         reason: 'New login from different location'
       });
+      logger.info('completeLogin: sessions revoked', { userId: user.id });
     } catch (revokeError: any) {
       logger.warn('Failed to revoke old sessions (non-critical)', {
         error: revokeError.message
       });
     }
 
-    const tokens = await sessionService.createSession(user.id, user.email, { userAgent, ipAddress });
+    let tokens;
+    try {
+      tokens = await sessionService.createSession(user.id, user.email, { userAgent, ipAddress });
+      logger.info('completeLogin: session created', { userId: user.id });
+    } catch (createError: any) {
+      logger.error('completeLogin: createSession failed', {
+        userId: user.id,
+        message: createError?.message,
+        name: createError?.name,
+        stack: createError?.stack
+      });
+      throw createError;
+    }
 
     const userData = {
       id: user.id,
@@ -152,7 +167,11 @@ export class LoginController {
       });
 
     } catch (error: any) {
-      logger.error('Login error:', error);
+      logger.error('Login error:', {
+        message: error?.message,
+        name: error?.name,
+        stack: error?.stack
+      });
 
       res.status(500).json({
         success: false,
@@ -217,7 +236,7 @@ export class LoginController {
       });
 
     } catch (error: any) {
-      logger.error('2FA login verification error:', error);
+      logger.error('2FA login verification error:', { message: error?.message, name: error?.name, stack: error?.stack });
 
       res.status(500).json({
         success: false,
@@ -259,7 +278,7 @@ export class LoginController {
       });
 
     } catch (error: any) {
-      logger.error('Magic link request error:', error);
+      logger.error('Magic link request error:', { message: error?.message, name: error?.name, stack: error?.stack });
 
       // Still return success to prevent email enumeration
       res.json({
@@ -326,7 +345,7 @@ export class LoginController {
       });
 
     } catch (error: any) {
-      logger.error('Magic link verification error:', error);
+      logger.error('Magic link verification error:', { message: error?.message, name: error?.name, stack: error?.stack });
 
       res.status(500).json({
         success: false,
