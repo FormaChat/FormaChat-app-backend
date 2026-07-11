@@ -42,7 +42,7 @@ export interface OTPGeneratedEventData {
   userId: string;
   email: string;
   otpId: string;
-  type: 'email_verification' | 'password_reset' | '2fa';
+  type: 'email_verification' | 'password_reset' | '2fa' | 'magic_link';
 }
 
 /**

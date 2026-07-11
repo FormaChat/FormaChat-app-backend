@@ -24,7 +24,7 @@ export interface WelcomeEmailParams {
 export interface OTPEmailParams {
   email: string;
   otpId: string;
-  type: 'email_verification' | 'password_reset' | '2fa';
+  type: 'email_verification' | 'password_reset' | '2fa' | 'magic_link';
   userId: string;
 }
 
@@ -139,14 +139,16 @@ export class EmailCoreService {
 
       // Fetch actual OTP from Auth service
       const otp = await getOTPFromAuth(params.otpId);
-      
+
       if (!otp) {
         throw new Error(`OTP not found for ID: ${params.otpId}`);
       }
 
       const subject = this.getOTPSubject(params.type);
-      const html = this.renderOTPTemplate(params.type, otp);
-      
+      const html = params.type === 'magic_link'
+        ? this.renderMagicLinkTemplate(params.email, otp)
+        : this.renderOTPTemplate(params.type, otp);
+
       await sendEmail({
         to: params.email,
         subject,
@@ -295,8 +297,9 @@ export class EmailCoreService {
   private getOTPSubject(type: string): string {
     const subjects = {
       email_verification: 'Verify Your Email - FormaChat',
-      password_reset: 'Reset Your Password - FormaChat', 
-      '2fa': 'Your Two-Factor Authentication Code - FormaChat'
+      password_reset: 'Reset Your Password - FormaChat',
+      '2fa': 'Your Two-Factor Authentication Code - FormaChat',
+      magic_link: 'Your Sign-In Link - FormaChat'
     };
     return subjects[type as keyof typeof subjects] || 'Your Verification Code - FormaChat';
   }
@@ -306,6 +309,11 @@ export class EmailCoreService {
       otp,
       type: type as any
     });
+  }
+
+  private renderMagicLinkTemplate(email: string, token: string): string {
+    const magicLinkUrl = `https://formachat.com/#/magic-login?email=${encodeURIComponent(email)}&token=${encodeURIComponent(token)}`;
+    return templateService.renderMagicLinkEmail({ magicLinkUrl });
   }
 
   private renderPasswordChangedTemplate(params: PasswordChangedParams): string {

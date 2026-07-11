@@ -13,6 +13,10 @@ export interface OTPTemplateData {
   type: 'email_verification' | 'password_reset' | '2fa';
 }
 
+export interface MagicLinkTemplateData {
+  magicLinkUrl: string;
+}
+
 export interface PasswordChangedTemplateData {
   changedAt: Date;
 }
@@ -81,6 +85,16 @@ export class TemplateService {
       otp: data.otp,
       subject: subjectMap[data.type],
       message: messageMap[data.type],
+      currentYear: new Date().getFullYear()
+    });
+  }
+
+  /**
+   * Render magic link sign-in email
+   */
+  renderMagicLinkEmail(data: MagicLinkTemplateData): string {
+    return this.renderTemplate('magic-link', {
+      magicLinkUrl: data.magicLinkUrl,
       currentYear: new Date().getFullYear()
     });
   }

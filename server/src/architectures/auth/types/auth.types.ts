@@ -1,7 +1,8 @@
 export enum OTPType {
   EMAIL_VERIFICATION = 'email_verification',
   PASSWORD_RESET = 'password_reset',
-  TWO_FACTOR_AUTH = '2fa'
+  TWO_FACTOR_AUTH = '2fa',
+  MAGIC_LINK = 'magic_link'
 }
 
 export enum AuditEventType {

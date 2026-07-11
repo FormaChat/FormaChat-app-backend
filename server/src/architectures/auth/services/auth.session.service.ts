@@ -5,13 +5,13 @@ import { createLogger } from '../utils/auth.logger.utils';
 const logger = createLogger('session-service');
 
 export interface SessionInfo {
+  id: string;
   deviceInfo: {
     userAgent: string;
     ipAddress: string;
   };
   createdAt: Date;
   expiresAt: Date;
-  refreshToken: string;
 }
 
 /**
@@ -85,14 +85,37 @@ export class SessionService {
 
       // Map all sessions to SessionInfo format
       return sessions.map(session => ({
+        id: session._id.toString(),
         deviceInfo: session.deviceInfo,
         createdAt: session.createdAt,
-        expiresAt: session.expiresAt,
-        refreshToken: session.refreshToken
+        expiresAt: session.expiresAt
       }));
     } catch (error:any) {
       logger.error('Error getting session info:', error);
       throw new Error('SESSION_INFO_FETCH_FAILED');
+    }
+  }
+
+  /**
+   * Revoke one specific session (e.g. "sign out this device") by its id.
+   */
+  async revokeSessionById(userId: string, sessionId: string, context: { ipAddress: string; userAgent: string }): Promise<boolean> {
+    try {
+      const revoked = await tokenService.revokeSessionById(userId, sessionId);
+
+      if (revoked) {
+        await AuditService.logAuthEvent({
+          userId,
+          eventType: 'logout',
+          success: true,
+          metadata: { ...context, reason: `Session ${sessionId} revoked by user` }
+        });
+      }
+
+      return revoked;
+    } catch (error: any) {
+      logger.error('Error revoking session by id:', error);
+      throw new Error('SESSION_REVOKE_BY_ID_FAILED');
     }
   }
 

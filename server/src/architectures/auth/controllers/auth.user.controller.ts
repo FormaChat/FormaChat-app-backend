@@ -47,7 +47,8 @@ export class UserController {
         isActive: user.isActive,
         lastLoginAt: user.lastLoginAt,
         createdAt: user.createdAt,
-        source: user.source
+        source: user.source,
+        twoFactorEnabled: user.twoFactorEnabled
       };
 
       res.json({
@@ -112,7 +113,8 @@ export class UserController {
         isActive: user.isActive,
         lastLoginAt: user.lastLoginAt,
         createdAt: user.createdAt,
-        source: user.source
+        source: user.source,
+        twoFactorEnabled: user.twoFactorEnabled
       };
 
       res.json({
@@ -263,6 +265,176 @@ export class UserController {
         error: {
           code: 'FAILED_TO_GET_SESSIONS',
           message: 'Failed to get sessions'
+        }
+      });
+    }
+  }
+
+  /**
+   * Enable two-factor authentication (password-confirmed)
+   */
+  async enableTwoFactor(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.userId;
+      const { password } = req.body;
+      const ipAddress = req.ip ?? 'unknown';
+      const userAgent = req.get('User-Agent') || 'unknown';
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: { code: 'AUTHENTICATION_REQUIRED', message: 'Authentication required' }
+        });
+      }
+
+      const user = await userService.getUserProfile(userId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          error: { code: 'USER_NOT_FOUND', message: 'User not found' }
+        });
+      }
+
+      const isPasswordValid = await PasswordService.comparePassword(password, user.passwordHash);
+      if (!isPasswordValid) {
+        return res.status(401).json({
+          success: false,
+          error: { code: 'INVALID_PASSWORD', message: 'Invalid password' }
+        });
+      }
+
+      user.twoFactorEnabled = true;
+      await user.save();
+
+      await AuditService.logAuthEvent({
+        userId: user.id,
+        eventType: 'password_change',
+        success: true,
+        metadata: { ipAddress, userAgent, reason: 'Two-factor authentication enabled' }
+      });
+
+      logger.info('Two-factor authentication enabled', { userId });
+
+      res.json({
+        success: true,
+        message: 'Two-factor authentication enabled successfully'
+      });
+
+    } catch (error: any) {
+      logger.error('Enable 2FA error:', error);
+
+      res.status(500).json({
+        success: false,
+        error: { code: 'FAILED_TO_ENABLE_2FA', message: 'Failed to enable two-factor authentication' }
+      });
+    }
+  }
+
+  /**
+   * Disable two-factor authentication (password-confirmed)
+   */
+  async disableTwoFactor(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.userId;
+      const { password } = req.body;
+      const ipAddress = req.ip ?? 'unknown';
+      const userAgent = req.get('User-Agent') || 'unknown';
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: { code: 'AUTHENTICATION_REQUIRED', message: 'Authentication required' }
+        });
+      }
+
+      const user = await userService.getUserProfile(userId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          error: { code: 'USER_NOT_FOUND', message: 'User not found' }
+        });
+      }
+
+      const isPasswordValid = await PasswordService.comparePassword(password, user.passwordHash);
+      if (!isPasswordValid) {
+        return res.status(401).json({
+          success: false,
+          error: { code: 'INVALID_PASSWORD', message: 'Invalid password' }
+        });
+      }
+
+      user.twoFactorEnabled = false;
+      await user.save();
+
+      await AuditService.logAuthEvent({
+        userId: user.id,
+        eventType: 'password_change',
+        success: true,
+        metadata: { ipAddress, userAgent, reason: 'Two-factor authentication disabled' }
+      });
+
+      logger.info('Two-factor authentication disabled', { userId });
+
+      res.json({
+        success: true,
+        message: 'Two-factor authentication disabled successfully'
+      });
+
+    } catch (error: any) {
+      logger.error('Disable 2FA error:', error);
+
+      res.status(500).json({
+        success: false,
+        error: { code: 'FAILED_TO_DISABLE_2FA', message: 'Failed to disable two-factor authentication' }
+      });
+    }
+  }
+
+  /**
+   * Revoke a single active session by id (e.g. "sign out this device")
+   */
+  async revokeSession(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user?.userId;
+      const { sessionId } = req.params;
+      const ipAddress = req.ip ?? 'unknown';
+      const userAgent = req.get('User-Agent') || 'unknown';
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: {
+            code: 'AUTHENTICATION_REQUIRED',
+            message: 'Authentication required'
+          }
+        });
+      }
+
+      const revoked = await sessionService.revokeSessionById(userId, sessionId, { ipAddress, userAgent });
+
+      if (!revoked) {
+        return res.status(404).json({
+          success: false,
+          error: {
+            code: 'SESSION_NOT_FOUND',
+            message: 'Session not found or already revoked'
+          }
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Session revoked successfully'
+      });
+
+    } catch (error: any) {
+      logger.error('Revoke session error:', error);
+
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'FAILED_TO_REVOKE_SESSION',
+          message: 'Failed to revoke session'
         }
       });
     }

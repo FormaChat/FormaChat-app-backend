@@ -233,10 +233,34 @@ export class TokenService {
         userId,
         isRevoked: false,
         expiresAt: { $gt: new Date() }
-      }).select('deviceInfo createdAt expiresAt');
+      }).select('_id deviceInfo createdAt expiresAt');
     } catch (error:any) {
       logger.error('Error getting active sessions:', error);
       throw new Error('SESSIONS_FETCH_FAILED');
+    }
+  }
+
+  /**
+   * Revoke a single session by its RefreshToken document id.
+   * Ownership-checked: only revokes if the session belongs to userId.
+   */
+  async revokeSessionById(userId: string, sessionId: string): Promise<boolean> {
+    try {
+      const result = await RefreshTokenModel.findOneAndUpdate(
+        { _id: sessionId, userId, isRevoked: false },
+        { isRevoked: true }
+      );
+
+      if (result) {
+        logger.info('Session revoked by id', { userId, sessionId });
+        return true;
+      }
+
+      logger.warn('Session not found for revoke-by-id (or not owned by user)', { userId, sessionId });
+      return false;
+    } catch (error: any) {
+      logger.error('Error revoking session by id:', error);
+      throw new Error('SESSION_REVOKE_BY_ID_FAILED');
     }
   }
 

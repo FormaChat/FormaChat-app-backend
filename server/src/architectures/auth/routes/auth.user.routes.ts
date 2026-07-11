@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { userController } from '../controllers/auth.user.controller';
 import { asyncHandler } from '../middleware/auth.errorHandler.middleware';
 import { validateRequest, submitFeedbackSchema } from '../middleware/auth.validation.middleware';
-import { updateProfileSchema, deleteAccountSchema } from '../middleware/auth.validation.middleware';
+import { updateProfileSchema, deleteAccountSchema, twoFactorToggleSchema } from '../middleware/auth.validation.middleware';
 import { jwtMiddleware } from '../middleware/auth.jwt.middleware';
 import { idempotencyMiddleware } from '../middleware/auth.idempotency.middleware';
 import { loggerMiddleware } from '../middleware/auth.logger.middleware';
@@ -42,6 +42,32 @@ router.get(
   loggerMiddleware,
   jwtMiddleware,
   asyncHandler(userController.getSessions)
+);
+
+// Revoke a single session (sign out one device)
+router.delete(
+  '/sessions/:sessionId',
+  loggerMiddleware,
+  jwtMiddleware,
+  asyncHandler(userController.revokeSession)
+);
+
+// Enable two-factor authentication (password-confirmed)
+router.post(
+  '/2fa/enable',
+  loggerMiddleware,
+  jwtMiddleware,
+  validateRequest(twoFactorToggleSchema),
+  asyncHandler(userController.enableTwoFactor)
+);
+
+// Disable two-factor authentication (password-confirmed)
+router.post(
+  '/2fa/disable',
+  loggerMiddleware,
+  jwtMiddleware,
+  validateRequest(twoFactorToggleSchema),
+  asyncHandler(userController.disableTwoFactor)
 );
 
 router.post(

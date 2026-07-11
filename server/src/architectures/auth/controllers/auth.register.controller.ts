@@ -90,6 +90,16 @@ export class RegisterController {
         });
       }
 
+      if (error.message === 'PASSWORD_BREACHED') {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'PASSWORD_BREACHED',
+            message: 'This password has appeared in a known data breach. Please choose a different one.'
+          }
+        });
+      }
+
       res.status(500).json({
         success: false,
         error: 'Registration failed'

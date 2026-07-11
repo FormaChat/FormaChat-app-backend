@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { CryptoUtils } from "../utils/auth.crypto.utils";
 import {env} from "../config/auth.env";
 import { createLogger } from "../utils/auth.logger.utils";
@@ -142,23 +143,43 @@ export class PasswordService {
   }
 
   /**
-   * Check if password has been compromised in the known breaches
-   * Note: This is a basic implementation. I will later consider integrating with 'HAVE I BEEEN PAWN API'
+   * Check if password has been compromised in known breaches, using the
+   * Have I Been Pwned Pwned Passwords k-anonymity API. Only the first 5 hex
+   * characters of the password's SHA-1 hash are ever sent - the full hash
+   * (and never the plaintext) leaves this service.
+   * Fails open: if HIBP is unreachable or errors, we do not block the user.
   */
 
   static async checkPasswordBreach(password: string): Promise<boolean> {
-    // Basic implementation - in production I will integrate with HIBP API
-    // For now, just checking against a small list of known compromised passwords
+    try {
+      const sha1 = createHash('sha1').update(password).digest('hex').toUpperCase();
+      const prefix = sha1.slice(0, 5);
+      const suffix = sha1.slice(5);
 
-    const knownBreachPasswords = [
-      'password123',
-      '12345678', 
-      'qwerty123',
-      'letmein123',
-      'welcome123'
-    ]
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3000);
 
-    return knownBreachPasswords.includes(password.toLowerCase());
+      let response: Response;
+      try {
+        response = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
+          signal: controller.signal,
+          headers: { 'Add-Padding': 'true' }
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
+
+      if (!response.ok) {
+        logger.warn('HIBP API returned non-OK status, failing open', { status: response.status });
+        return false;
+      }
+
+      const body = await response.text();
+      return body.split('\n').some(line => line.split(':')[0].trim() === suffix);
+    } catch (error: any) {
+      logger.warn('HIBP breach check failed, failing open (not blocking user)', { error: error.message });
+      return false;
+    }
   }
 
 }

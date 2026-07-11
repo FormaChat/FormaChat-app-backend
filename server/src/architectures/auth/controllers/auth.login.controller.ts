@@ -2,11 +2,44 @@ import { Request, Response } from 'express';
 import { userService } from '../services/auth.user.service';
 import { sessionService } from '../services/auth.session.service';
 import { AuditService } from '../services/auth.audit.service';
+import { otpService } from '../services/auth.otp.service';
+import { IUser } from '../persistence/auth.user.models';
 import { createLogger } from '../utils/auth.logger.utils';
 
 const logger = createLogger('login-controller');
 
 export class LoginController {
+  /**
+   * Revoke existing sessions, create a new one, and build the standard
+   * login-success response body. Shared by password login and 2FA-verified login.
+   */
+  private async completeLogin(user: IUser, ipAddress: string, userAgent: string) {
+    try {
+      await sessionService.revokeAllUserSessions(user.id, {
+        ipAddress,
+        userAgent,
+        reason: 'New login from different location'
+      });
+    } catch (revokeError: any) {
+      logger.warn('Failed to revoke old sessions (non-critical)', {
+        error: revokeError.message
+      });
+    }
+
+    const tokens = await sessionService.createSession(user.id, user.email, { userAgent, ipAddress });
+
+    const userData = {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      isVerified: user.isVerified,
+      lastLoginAt: user.lastLoginAt
+    };
+
+    return { user: userData, tokens };
+  }
+
   /**
    * User login with email and password
    */
@@ -77,38 +110,31 @@ export class LoginController {
         });
       }
 
-      // 🔥 FIXED: Revoke all existing sessions BEFORE creating new one
-      // This ensures clean state
-      try {
-        await sessionService.revokeAllUserSessions(loginResult.user.id, {
-          ipAddress,
-          userAgent,
-          reason: 'New login from different location'
+      // Two-factor authentication gate - password is valid, but don't create
+      // a session yet. Issue a 2FA OTP (emailed via the existing OTP pipeline)
+      // and require a separate verify call to complete login.
+      if (loginResult.user.twoFactorEnabled) {
+        await otpService.generateOTP({
+          userId: loginResult.user.id,
+          type: '2fa',
+          metadata: { ipAddress, userAgent }
         });
-      } catch (revokeError: any) {
-        // Log but don't block login
-        logger.warn('Failed to revoke old sessions (non-critical)', {
-          error: revokeError.message
+
+        logger.info('2FA required, OTP issued', {
+          userId: loginResult.user.id,
+          email: loginResult.user.email
+        });
+
+        return res.json({
+          success: true,
+          data: {
+            requiresTwoFactor: true,
+            userId: loginResult.user.id
+          }
         });
       }
 
-      // Generate tokens for successful login
-      // The createSession will internally call tokenService.generateTokenPair with revokeExisting=true
-      const tokens = await sessionService.createSession(
-        loginResult.user.id,
-        loginResult.user.email,
-        { userAgent, ipAddress }
-      );
-
-      // Return user data (excluding sensitive information)
-      const userData = {
-        id: loginResult.user.id,
-        email: loginResult.user.email,
-        firstName: loginResult.user.firstName,
-        lastName: loginResult.user.lastName,
-        isVerified: loginResult.user.isVerified,
-        lastLoginAt: loginResult.user.lastLoginAt
-      };
+      const { user: userData, tokens } = await this.completeLogin(loginResult.user, ipAddress, userAgent);
 
       // Log successful login
       logger.info('User logged in successfully', {
@@ -127,10 +153,184 @@ export class LoginController {
 
     } catch (error: any) {
       logger.error('Login error:', error);
-      
+
       res.status(500).json({
         success: false,
         error: 'Login failed'
+      });
+    }
+  }
+
+  /**
+   * Complete login after 2FA OTP verification
+   */
+  async verifyTwoFactorLogin(req: Request, res: Response) {
+    try {
+      const { userId, otp } = req.body;
+      const ipAddress = req.ip ?? 'unknown';
+      const userAgent = req.get('User-Agent') || 'unknown';
+
+      const user = await userService.getUserProfile(userId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          error: { code: 'USER_NOT_FOUND', message: 'Invalid verification request' }
+        });
+      }
+
+      if (!user.twoFactorEnabled) {
+        return res.status(400).json({
+          success: false,
+          error: { code: 'TWO_FACTOR_NOT_ENABLED', message: 'Two-factor authentication is not enabled for this account' }
+        });
+      }
+
+      const otpResult = await otpService.verifyOTP(user.id, otp, '2fa');
+      if (!otpResult.valid) {
+        await AuditService.logAuthEvent({
+          userId: user.id,
+          eventType: 'login',
+          success: false,
+          metadata: { ipAddress, userAgent, reason: 'Invalid 2FA OTP' }
+        });
+
+        return res.status(400).json({
+          success: false,
+          error: { code: 'INVALID_OTP', message: otpResult.error || 'Invalid or expired code' }
+        });
+      }
+
+      const { user: userData, tokens } = await this.completeLogin(user, ipAddress, userAgent);
+
+      await AuditService.logAuthEvent({
+        userId: user.id,
+        eventType: 'login',
+        success: true,
+        metadata: { ipAddress, userAgent, reason: '2FA verified' }
+      });
+
+      logger.info('2FA login completed successfully', { userId: user.id });
+
+      res.json({
+        success: true,
+        data: { user: userData, tokens }
+      });
+
+    } catch (error: any) {
+      logger.error('2FA login verification error:', error);
+
+      res.status(500).json({
+        success: false,
+        error: { code: 'TWO_FACTOR_VERIFICATION_FAILED', message: 'Failed to verify two-factor code' }
+      });
+    }
+  }
+
+  /**
+   * Request a magic sign-in link by email (email-enumeration-safe)
+   */
+  async requestMagicLink(req: Request, res: Response) {
+    try {
+      const { email } = req.body;
+      const ipAddress = req.ip ?? 'unknown';
+      const userAgent = req.get('User-Agent') || 'unknown';
+
+      const user = await userService.getUserByEmail(email);
+
+      if (!user) {
+        logger.warn('Magic link requested for non-existent email', { email, ipAddress });
+        return res.json({
+          success: true,
+          message: 'If the email exists, a sign-in link has been sent'
+        });
+      }
+
+      await otpService.generateOTP({
+        userId: user.id,
+        type: 'magic_link',
+        metadata: { ipAddress, userAgent }
+      });
+
+      logger.info('Magic link OTP generated', { userId: user.id });
+
+      res.json({
+        success: true,
+        message: 'If the email exists, a sign-in link has been sent'
+      });
+
+    } catch (error: any) {
+      logger.error('Magic link request error:', error);
+
+      // Still return success to prevent email enumeration
+      res.json({
+        success: true,
+        message: 'If the email exists, a sign-in link has been sent'
+      });
+    }
+  }
+
+  /**
+   * Verify a magic link token and complete login
+   */
+  async verifyMagicLink(req: Request, res: Response) {
+    try {
+      const { email, token } = req.body;
+      const ipAddress = req.ip ?? 'unknown';
+      const userAgent = req.get('User-Agent') || 'unknown';
+
+      const user = await userService.getUserByEmail(email);
+      if (!user) {
+        return res.status(400).json({
+          success: false,
+          error: { code: 'INVALID_MAGIC_LINK', message: 'Invalid or expired sign-in link' }
+        });
+      }
+
+      const otpResult = await otpService.verifyOTP(user.id, token, 'magic_link');
+      if (!otpResult.valid) {
+        await AuditService.logAuthEvent({
+          userId: user.id,
+          eventType: 'login',
+          success: false,
+          metadata: { ipAddress, userAgent, reason: 'Invalid magic link token' }
+        });
+
+        return res.status(400).json({
+          success: false,
+          error: { code: 'INVALID_MAGIC_LINK', message: 'Invalid or expired sign-in link' }
+        });
+      }
+
+      if (!user.isVerified) {
+        return res.status(403).json({
+          success: false,
+          error: { code: 'EMAIL_NOT_VERIFIED', message: 'Please verify your email before logging in' },
+          data: { requiresVerification: true }
+        });
+      }
+
+      const { user: userData, tokens } = await this.completeLogin(user, ipAddress, userAgent);
+
+      await AuditService.logAuthEvent({
+        userId: user.id,
+        eventType: 'login',
+        success: true,
+        metadata: { ipAddress, userAgent, reason: 'Magic link login' }
+      });
+
+      logger.info('Magic link login completed successfully', { userId: user.id });
+
+      res.json({
+        success: true,
+        data: { user: userData, tokens }
+      });
+
+    } catch (error: any) {
+      logger.error('Magic link verification error:', error);
+
+      res.status(500).json({
+        success: false,
+        error: { code: 'MAGIC_LINK_VERIFICATION_FAILED', message: 'Failed to verify sign-in link' }
       });
     }
   }

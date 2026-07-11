@@ -15,7 +15,7 @@ const logger = createLogger("otp-service");
 
 export interface OTPGenerateOptions {
   userId: string;
-  type: 'email_verification' | 'password_reset' | '2fa';
+  type: 'email_verification' | 'password_reset' | '2fa' | 'magic_link';
   metadata: {
     ipAddress: string;
     userAgent: string;
@@ -44,8 +44,12 @@ export class OTPService {
       const {userId, type, metadata} = options;
 
       // Generate OTP
+      // Magic links use a much longer random token (it's carried in a URL,
+      // not typed by hand, so length isn't a UX cost - only entropy matters).
 
-      const otp = CryptoUtils.generateSecureRandom(env.OTP_LENGTH);
+      const otp = type === 'magic_link'
+        ? CryptoUtils.generateSecureRandom(40)
+        : CryptoUtils.generateSecureRandom(env.OTP_LENGTH);
       const otpId = CryptoUtils.generateUUID();
 
       // Hash OTP for secure storage

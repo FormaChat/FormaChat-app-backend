@@ -58,6 +58,15 @@ export const refreshTokenSchema = z.object({
 });
 
 export const resetPasswordSchema = z.object({
+  email: z.string()
+    .min(1, 'Email is required')
+    .email('Invalid email format')
+    .toLowerCase()
+    .trim(),
+
+  otp: z.string()
+    .min(1, 'Reset code is required'),
+
   newPassword: z.string()
     .min(8, 'Password must be at least 8 characters')
     .max(128, 'Password is too long')
@@ -65,7 +74,7 @@ export const resetPasswordSchema = z.object({
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
       passwordRequirements
     ),
-  
+
   confirmPassword: z.string()
     .min(1, 'Please confirm your password')
 }).refine((data) => data.newPassword === data.confirmPassword, {
@@ -141,6 +150,39 @@ export const updateProfileSchema = z.object({
 export const deleteAccountSchema = z.object({
   password: z.string()
     .min(1, 'Password is required for account deletion')
+});
+
+export const twoFactorToggleSchema = z.object({
+  password: z.string()
+    .min(1, 'Password is required to change two-factor authentication settings')
+});
+
+export const verifyTwoFactorLoginSchema = z.object({
+  userId: z.string()
+    .min(1, 'User id is required'),
+
+  otp: z.string()
+    .length(6, 'OTP must be 6 digits')
+    .regex(/^\d+$/, 'OTP must contain only numbers')
+});
+
+export const requestMagicLinkSchema = z.object({
+  email: z.string()
+    .min(1, 'Email is required')
+    .email('Invalid email format')
+    .toLowerCase()
+    .trim()
+});
+
+export const verifyMagicLinkSchema = z.object({
+  email: z.string()
+    .min(1, 'Email is required')
+    .email('Invalid email format')
+    .toLowerCase()
+    .trim(),
+
+  token: z.string()
+    .min(1, 'Token is required')
 });
 
 

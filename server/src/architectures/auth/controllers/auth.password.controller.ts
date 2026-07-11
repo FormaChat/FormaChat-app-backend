@@ -70,6 +70,16 @@ export class PasswordController {
         });
       }
 
+      if (error.message === 'PASSWORD_BREACHED') {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'PASSWORD_BREACHED',
+            message: 'This password has appeared in a known data breach. Please choose a different one.'
+          }
+        });
+      }
+
       res.status(500).json({
         success: false,
         error: 'Failed to change password'
@@ -157,6 +167,18 @@ export class PasswordController {
         return res.status(400).json({
           success: false,
           error: 'Invalid or expired reset code'
+        });
+      }
+
+      // Check password against known breach databases (HIBP)
+      const isBreached = await PasswordService.checkPasswordBreach(newPassword);
+      if (isBreached) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'PASSWORD_BREACHED',
+            message: 'This password has appeared in a known data breach. Please choose a different one.'
+          }
         });
       }
 

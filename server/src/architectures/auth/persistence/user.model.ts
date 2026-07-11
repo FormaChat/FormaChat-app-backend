@@ -17,7 +17,8 @@ export interface IUser extends Document {
   failedLoginAttempts: number;
   lockUntil?: Date;
   passwordChangedAt: Date;
-  
+  twoFactorEnabled: boolean;
+
   // Future-proofing
   source: 'email' | 'google' | 'github';
   
@@ -75,11 +76,15 @@ const UserSchema: Schema<IUser> = new Schema({
     type: Date 
     // Lock duration: 30 minutes (enforced in auth.user.service)
   },
-  passwordChangedAt: { 
-    type: Date, 
-    default: Date.now 
+  passwordChangedAt: {
+    type: Date,
+    default: Date.now
   },
-  
+  twoFactorEnabled: {
+    type: Boolean,
+    default: false
+  },
+
   // Future OAuth support
   source: { 
     type: String, 

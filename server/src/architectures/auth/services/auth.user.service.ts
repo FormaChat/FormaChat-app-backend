@@ -82,6 +82,21 @@ export class UserService {
         throw new Error(`WEAK_PASSWORD: ${passwordValidation.errors.join(', ')}`);
       }
 
+      // Check password against known breach databases (HIBP)
+      const isBreached = await PasswordService.checkPasswordBreach(userData.password);
+      if (isBreached) {
+        await AuditService.logAuthEvent({
+          eventType: 'registration',
+          success: false,
+          metadata: {
+            ipAddress: metadata.ipAddress,
+            userAgent: metadata.userAgent,
+            reason: 'Password found in known data breach'
+          }
+        });
+        throw new Error('PASSWORD_BREACHED');
+      }
+
       // Hash password
       const passwordHash = await PasswordService.hashPassword(userData.password);
 
@@ -312,6 +327,12 @@ export class UserService {
       const passwordValidation = PasswordService.validatePasswordStrength(newPassword);
       if (!passwordValidation.isValid) {
         throw new Error(`WEAK_PASSWORD: ${passwordValidation.errors.join(', ')}`);
+      }
+
+      // Check password against known breach databases (HIBP)
+      const isBreached = await PasswordService.checkPasswordBreach(newPassword);
+      if (isBreached) {
+        throw new Error('PASSWORD_BREACHED');
       }
 
       // Hash and update new password
