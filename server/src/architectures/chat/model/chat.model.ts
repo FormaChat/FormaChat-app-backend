@@ -29,6 +29,12 @@ export interface IChatSession extends Document {
     };
     // session metadata
     status: 'active' | 'ended' | 'abandoned';
+    // True once the visitor has sent at least one message. Widget-open alone
+    // does not engage a session - this is what gates tier/quota counting and
+    // what counts as a "real" session in dashboards/analytics. Ghost sessions
+    // (widget opened, never engaged) are purged quickly by cron instead of
+    // waiting on the normal abandoned/ended lifecycle.
+    engaged: boolean;
     startedAt: Date;
     lastMessageAt: Date;
     endedAt?: Date;
@@ -209,6 +215,11 @@ const ChatSessionSchema: Schema = new Schema({
         default: 'active',
         index: true,
     },
+    engaged: {
+        type: Boolean,
+        default: false,
+        index: true,
+    },
     startedAt: {
         type: Date,
         default: Date.now,
@@ -278,6 +289,7 @@ ChatSessionSchema.index({businessId: 1, startedAt: -1});
 ChatSessionSchema.index({businessId: 1, 'contact.captured': 1});
 ChatSessionSchema.index({businessId: 1, status: 1});
 ChatSessionSchema.index({visitorId: 1, businessId: 1});
+ChatSessionSchema.index({engaged: 1, startedAt: 1});
 
 /**
  * ChatMessage Schema

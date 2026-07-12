@@ -64,28 +64,20 @@ export class ChatService {
 
       const config = accessCheck.config!;
 
-      // 2. Check daily session limit (Redis)
-      const limitCheck = await checkDailyLimit(businessId);
+      // NOTE: The daily session-limit check/increment does NOT happen here.
+      // Opening the widget doesn't cost a session anymore - only sending a
+      // first message does (see sendMessage/sendMessageStream). Otherwise a
+      // visitor who opens the widget and says nothing (or a page full of
+      // embeds auto-loading it) would silently burn a business's daily quota
+      // with zero real conversations. Ghost sessions created here are cheap
+      // and get purged by cron (purgeGhostSessions) well before they'd ever
+      // count toward anything.
 
-      if (limitCheck.limitExceeded) {
-        logger.warn('[Session] Daily limit exceeded', {
-          businessId,
-          currentCount: limitCheck.currentCount,
-          maxLimit: limitCheck.maxLimit
-        });
-
-        return {
-          success: false,
-          error: 'DAILY_LIMIT_EXCEEDED',
-          reason: `Daily session limit reached (${limitCheck.currentCount}/${limitCheck.maxLimit}). Resets at ${limitCheck.resetsAt}`
-        };
-      }
-
-      // 3. Generate IDs
+      // 2. Generate IDs
       const sessionId = uuidv4();
       const generatedVisitorId = visitorId || `visitor_${uuidv4()}`;
 
-      // 4. Create session in MongoDB
+      // 3. Create session in MongoDB
       const session = new ChatSession({
         sessionId,
         businessId,
@@ -93,6 +85,7 @@ export class ChatService {
         businessName: config.businessName,
         visitorId: generatedVisitorId,
         status: 'active',
+        engaged: false,
         startedAt: new Date(),
         lastMessageAt: new Date(),
         messageCount: 0,
@@ -110,11 +103,6 @@ export class ChatService {
       });
 
       await session.save();
-      publishSessionStarted({ businessId, sessionId, visitorId: generatedVisitorId });
-      webhookService.triggerEvent(businessId, 'session.started', { sessionId, visitorId: generatedVisitorId }).catch(() => {});
-
-      // 5. Increment Redis session counter
-      await incrementSessionCount(businessId);
 
       const duration = Date.now() - startTime;
 
@@ -287,7 +275,34 @@ export class ChatService {
         session.status = 'active';
       }
 
-      // 2. Check if business is still active (via Business Service API)
+      // 2. First message on this session is what actually "starts" it for
+      // quota/tier purposes and for the business owner's analytics/webhooks -
+      // widget-open alone (createSession) does not count. Gate + count here.
+      if (!session.engaged) {
+        const limitCheck = await checkDailyLimit(session.businessId);
+
+        if (limitCheck.limitExceeded) {
+          logger.warn('[Message] Daily limit exceeded', {
+            businessId: session.businessId,
+            sessionId,
+            currentCount: limitCheck.currentCount,
+            maxLimit: limitCheck.maxLimit
+          });
+
+          return {
+            success: false,
+            error: 'DAILY_LIMIT_EXCEEDED'
+          };
+        }
+
+        await incrementSessionCount(session.businessId);
+        session.engaged = true;
+
+        publishSessionStarted({ businessId: session.businessId, sessionId, visitorId: session.visitorId });
+        webhookService.triggerEvent(session.businessId, 'session.started', { sessionId, visitorId: session.visitorId }).catch(() => {});
+      }
+
+      // 3. Check if business is still active (via Business Service API)
       const accessCheck = await this.checkBusinessAccess(session.businessId);
 
       if (!accessCheck.allowed) {
@@ -299,12 +314,12 @@ export class ChatService {
 
       const config = accessCheck.config!;
 
-      const validTone: ChatbotTone = 
+      const validTone: ChatbotTone =
         config.chatbotTone && isValidTone(config.chatbotTone)
           ? config.chatbotTone
           : getDefaultTone();
 
-      // 3. Store user message
+      // 4. Store user message
       const userMsgDoc = new ChatMessage({
         sessionId,
         businessId: session.businessId,
@@ -505,6 +520,19 @@ export class ChatService {
       if (session.status === 'ended') throw new Error('SESSION_ENDED');
       if (session.status === 'abandoned') {
         session.status = 'active';
+      }
+
+      // 1b. Same quota gate as sendMessage - first message on a session is
+      // what counts toward the daily limit, not widget-open.
+      if (!session.engaged) {
+        const limitCheck = await checkDailyLimit(session.businessId);
+        if (limitCheck.limitExceeded) throw new Error('DAILY_LIMIT_EXCEEDED');
+
+        await incrementSessionCount(session.businessId);
+        session.engaged = true;
+
+        publishSessionStarted({ businessId: session.businessId, sessionId, visitorId: session.visitorId });
+        webhookService.triggerEvent(session.businessId, 'session.started', { sessionId, visitorId: session.visitorId }).catch(() => {});
       }
 
       // 2. Check business access
@@ -952,7 +980,10 @@ export class ChatService {
       const skip = (page - 1) * limit;
 
       // Build query
-      const query: any = { businessId, deletedAt: null };
+      // engaged: true excludes ghost sessions (widget opened, visitor never
+      // sent a message) - those aren't real conversations and shouldn't
+      // inflate the owner's session counts/analytics.
+      const query: any = { businessId, deletedAt: null, engaged: true };
 
       if (filters.status) query.status = filters.status;
       if (filters.contactCaptured !== undefined) {
@@ -1306,6 +1337,73 @@ export class ChatService {
     }
   }
 
+  /**
+   * Purge ghost sessions - widget was opened (ChatSession created) but the
+   * visitor never sent a message, so nothing was ever counted against quota
+   * and no lead/message data could possibly exist for them. Runs frequently
+   * and deletes immediately (no 7-day grace period like
+   * permanentlyDeleteSessions) since there's nothing here worth keeping.
+   */
+  async purgeGhostSessions(olderThanMinutes: number = 30): Promise<{
+    success: boolean;
+    deletedCount: number;
+    skippedCount: number;
+  }> {
+    try {
+      const cutoff = new Date(Date.now() - olderThanMinutes * 60 * 1000);
+
+      const ghostSessions = await ChatSession.find({
+        engaged: false,
+        startedAt: { $lt: cutoff }
+      });
+
+      let deletedCount = 0;
+      let skippedCount = 0;
+
+      for (const session of ghostSessions) {
+        // SAFETY CHECK: a ghost session should never have a linked lead
+        // (contact capture requires messages), but double-verify anyway.
+        const hasLinkedLead = await ContactLead.findOne({
+          $or: [
+            { firstSessionId: session.sessionId },
+            { lastSessionId: session.sessionId }
+          ]
+        });
+
+        if (hasLinkedLead) {
+          logger.warn('[Cleanup] Skipping ghost session purge - lead found', {
+            sessionId: session.sessionId,
+            leadEmail: hasLinkedLead.email
+          });
+          skippedCount++;
+          continue;
+        }
+
+        await Promise.all([
+          ChatSession.deleteOne({ sessionId: session.sessionId }),
+          ChatMessage.deleteMany({ sessionId: session.sessionId })
+        ]);
+
+        deletedCount++;
+      }
+
+      logger.info('[Cleanup] Ghost session purge complete', {
+        eligible: ghostSessions.length,
+        deleted: deletedCount,
+        skipped: skippedCount
+      });
+
+      return { success: true, deletedCount, skippedCount };
+
+    } catch (error: any) {
+      logger.error('[Cleanup] Ghost session purge failed', {
+        message: error.message
+      });
+
+      return { success: false, deletedCount: 0, skippedCount: 0 };
+    }
+  }
+
    async permanentlyDeleteSessions(): Promise<{
     success: boolean;
     deletedCount: number;
@@ -1481,7 +1579,7 @@ export class ChatService {
 
     const [sessionRows, messageRows, leadRows] = await Promise.all([
       ChatSession.aggregate([
-        { $match: { businessId, startedAt: { $gte: since } } },
+        { $match: { businessId, startedAt: { $gte: since }, engaged: true } },
         { $group: { _id: dateKey('startedAt'), count: { $sum: 1 } } },
       ]),
       ChatMessage.aggregate([

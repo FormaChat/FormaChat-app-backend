@@ -87,6 +87,12 @@ router.post(
   chatController.markAbandonedSessionsController
 );
 
+router.post(
+  '/internal/cleanup/ghost-sessions',
+  internalMiddleware,
+  chatController.purgeGhostSessionsController
+);
+
 router.get('/health', (req, res) => {
   res.status(200).json({
     status: 'ok',

@@ -30,6 +30,28 @@ export function setupCronJobs() {
     }
   });
 
+  // Every 15 minutes — purge ghost sessions (widget opened, visitor never
+  // sent a message) well before they'd otherwise sit around for hours
+  cron.schedule('*/15 * * * *', async () => {
+    try {
+      const result = await chatService.purgeGhostSessions();
+
+      if (result.deletedCount > 0 || result.skippedCount > 0) {
+        logger.info('[Cron] ✓ Ghost session purge complete', {
+          deleted: result.deletedCount,
+          skipped: result.skippedCount,
+          timestamp: new Date().toISOString()
+        });
+      }
+
+    } catch (error: any) {
+      logger.error('[Cron] Ghost session purge failed', {
+        message: error.message,
+        stack: error.stack
+      });
+    }
+  });
+
   cron.schedule('0 3 * * *', async () => {
     try {
       logger.info('[Cron] Starting permanent session deletion...');
@@ -69,7 +91,7 @@ export function setupCronJobs() {
           const businessId = String(biz._id);
 
           const [sessions, leads] = await Promise.all([
-            ChatSession.find({ businessId, startedAt: { $gte: weekStart } }).select('messageCount botMessageCount').lean(),
+            ChatSession.find({ businessId, startedAt: { $gte: weekStart }, engaged: true }).select('messageCount botMessageCount').lean(),
             ContactLead.find({ businessId, firstContactDate: { $gte: weekStart } }).select('name email phone').lean(),
           ]);
 
@@ -118,6 +140,7 @@ export function setupCronJobs() {
   logger.info('[Cron] ✓ Jobs scheduled successfully', {
     jobs: [
       'Session cleanup (hourly)',
+      'Ghost session purge (every 15 minutes)',
       'Permanent session deletion (daily at 3am)',
       'Weekly digest (Monday 8am)',
       'Webhook delivery retries (every 5 minutes)'

@@ -208,17 +208,20 @@ export const sendMessageController = async (
 
     // Handle errors
     if (!result.success) {
-      const statusCode = 
+      const statusCode =
         result.error === 'SESSION_NOT_FOUND' ? 404 :
         result.error === 'SESSION_NOT_ACTIVE' ? 403 :
         result.error === 'BUSINESS_NOT_AVAILABLE' ? 503 :
+        result.error === 'DAILY_LIMIT_EXCEEDED' ? 429 :
         500;
 
       res.status(statusCode).json({
         success: false,
         error: {
           code: result.error,
-          message: 'Failed to process message'
+          message: result.error === 'DAILY_LIMIT_EXCEEDED'
+            ? 'Daily session limit reached for this business. Please try again tomorrow.'
+            : 'Failed to process message'
         }
       });
       return;
@@ -302,7 +305,20 @@ export const sendMessageStreamController = async (req: Request, res: Response) =
       sessionId: req.params.sessionId
     });
 
-    res.write(`data: ${JSON.stringify({ error: 'STREAMING_FAILED' })}\n\n`);
+    // Daily limit is rejected before any chunk is streamed, so headers
+    // haven't been flushed yet - send a proper 429 instead of an SSE error.
+    if (error.message === 'DAILY_LIMIT_EXCEEDED' && !res.headersSent) {
+      res.status(429).json({
+        success: false,
+        error: {
+          code: 'DAILY_LIMIT_EXCEEDED',
+          message: 'Daily session limit reached for this business. Please try again tomorrow.'
+        }
+      });
+      return;
+    }
+
+    res.write(`data: ${JSON.stringify({ error: error.message === 'DAILY_LIMIT_EXCEEDED' ? 'DAILY_LIMIT_EXCEEDED' : 'STREAMING_FAILED' })}\n\n`);
     res.end();
   }
 };
@@ -915,6 +931,41 @@ export const markAbandonedSessionsController = async (
   }
 };
 
+export const purgeGhostSessionsController = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const result = await chatService.purgeGhostSessions();
+
+    res.status(200).json({
+      success: true,
+      data: {
+        deletedCount: result.deletedCount,
+        skippedCount: result.skippedCount
+      }
+    });
+
+    logger.info('[Controller] Ghost sessions purged', {
+      deleted: result.deletedCount,
+      skipped: result.skippedCount
+    });
+
+  } catch (error: any) {
+    logger.error('[Controller] Ghost session purge failed', {
+      message: error.message
+    });
+
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Failed to purge ghost sessions'
+      }
+    });
+  }
+};
+
 export const permanentlyDeleteSessionsController = async (
   req: Request,
   res: Response
@@ -994,6 +1045,7 @@ export default {
   // Internal/cron
   markAbandonedSessionsController,
   permanentlyDeleteSessionsController,
+  purgeGhostSessionsController,
   
   // testPermanentDeletionNoGraceController,
 
