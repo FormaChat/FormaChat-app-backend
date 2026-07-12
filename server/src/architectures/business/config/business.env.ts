@@ -43,9 +43,9 @@ export const env = cleanEnv(process.env, {
   ADMIN_API_KEY: str(),
   
   // CLOUDINARY
-  // API_SECRET_CLOUDINARY: str(),
-  // API_KEY_CLOUDINARY: str(),
-  // CLOUDINARY_URL: str(),
+  API_SECRET_CLOUDINARY: str(),
+  API_KEY_CLOUDINARY: str(),
+  CLOUDINARY_URL: str(),
 
 });
 

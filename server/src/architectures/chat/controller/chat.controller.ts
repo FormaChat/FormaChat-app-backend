@@ -229,7 +229,8 @@ export const sendMessageController = async (
       success: true,
       data: {
         message: result.message,
-        contactCaptured: result.contactCaptured
+        contactCaptured: result.contactCaptured,
+        products: result.products
       }
     });
 

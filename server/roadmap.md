@@ -69,25 +69,28 @@ Still organized as 4 domains (`auth`, `business`, `chat`, `email`) each with the
 
 ---
 
-## 4. Live Product Catalog (NEW, proposed 2026-07-11)
+## 4. Live Product Catalog
+
+**Full build log:** `feature4.md`.
 
 **Goal:** restructure the business profile into two distinct sections — a **Questionnaire** (the existing static business-info wizard) and a **Products** section where owners add per-product images and live stock counts. The chatbot reads current stock/price directly, not a stale snapshot from onboarding. This is the foundation for a future POS/e-commerce mode, and for sending product images through channel integrations like WhatsApp.
 
-**Current state:** the business model has a `productsServices` field, but it's a free-text description, not a structured catalog — no per-product entity, no images, no stock/quantity field exists anywhere in the schema.
+**Decision made before building:** product descriptions are owner-typed, not AI-generated from photos — this project has no OpenAI key and everything else runs on Groq, so rather than add a new paid dependency, the searchable text is just typed in like every other wizard field. No vision API involved anywhere.
 
 ### Backend
-- [ ] **Product model** — new collection (not embedded free text): `businessId`, `name`, `price`, `stockQuantity`, `imageUrl` (Cloudinary), `category`, `description`, `pineconeVectorId`. Kept separate from the vision/embedding pipeline so a stock update doesn't require re-running image description + re-embedding.
-- [ ] **Image upload → vision description → Pinecone embedding** — GPT-4o vision description + Cloudinary storage + embed description into Pinecone with `imageUrl` in metadata, scoped per-product.
-- [ ] **Live stock editing endpoint** — fast write path for just the quantity field, separate from the full business-save flow, since it's meant to be updated frequently.
-- [ ] **Keep stock/price in sync with the vector store** — recommend MongoDB as source of truth (looked up at response time), Pinecone only for semantic search + returning the product ID, to avoid re-embedding on every stock change.
-- [ ] **Chat response returns `products[]` with live data** — chat service looks up current stock/price from MongoDB by product ID after a Pinecone match, so the number shown is never stale even if the vector hasn't been re-synced.
-- [ ] **Future POS/e-commerce hook** — Product model designed so stock-decrement events (from an order, a POS sync, etc.) can plug in later without a schema rewrite.
+- [x] **Product model** (`business/models/product.model.ts`) — own collection: `businessId`, `name`, `description`, `price`, `stockQuantity`, `category`, `imageUrl`, `isActive`, `pineconeVectorId`.
+- [x] **Image upload** — server-mediated (not direct-to-Cloudinary): new `POST /businesses/:id/products/upload-image` using `multer` (memory storage) + the `cloudinary` SDK, both newly installed. Cloudinary credentials already existed in `.env` but were unused/commented out in `business.env.ts` — now wired in.
+- [x] **Text → Pinecone embedding** — reuses `embeddingService.embedTexts()` completely unchanged. Create/update builds `"{name}. {description} Category: {category}. Price: ${price}."` and upserts into the business's existing namespace with `type: 'product'` in metadata; only re-embeds when a searchable field actually changed.
+- [x] **Live stock editing endpoint** — `PATCH /businesses/:id/products/:productId/stock`, single-field write, no re-embedding, no Pinecone call.
+- [x] **Stock/price sync** — MongoDB is the source of truth, looked up live by `productId` after every Pinecone match; vector metadata is never trusted for numbers that change often.
+- [x] **Chat response returns `products[]` with live data** — `chat.service.ts` filters vector matches for `metadata.type === 'product'`, looks up current data from MongoDB, returns it alongside `text`. `chat.pinecone.config.ts`'s `searchBusiness()` needed one additive change (now returns `metadata` per result, previously stripped to just `sourceType`).
+- [x] **POS/e-commerce hook** — confirmed the model shape doesn't block a future `$inc` on `stockQuantity` from an order/POS integration.
 
 ### Frontend
-- [ ] **Products section in the dashboard** — new UI area (alongside, not replacing, the existing 4-step questionnaire wizard) for adding/editing products: image upload, name, price, stock count.
-- [ ] **Live stock editing UI** — quick inline quantity edit, paired with the fast backend write path above.
-- [ ] **Chat widget product cards** — render `products[]` (image + name + price + stock) inline in the chat widget once the backend returns them.
-- [ ] **WhatsApp image delivery (future, blocked on WhatsApp integration)** — once WhatsApp ships, product images ride on the same Cloudinary URLs already stored per product — no extra work needed if the Product model above is in place first.
+- [x] **Products page** (`#/dashboard/businesses/:id/products`) — linked from a new card on the Channels detail page. Grid of product cards, "+ Add Product" modal (image upload with live preview, name, category, price, stock, description).
+- [x] **Live stock editing UI** — inline number input + Save button on each product card.
+- [x] **Chat widget product cards** — `chat-widget.ts` renders image/name/price/stock cards under the bot's response whenever `products[]` comes back non-empty.
+- [ ] **WhatsApp image delivery (future, blocked on WhatsApp integration)** — no extra work needed when that ships; product images already ride on stored Cloudinary URLs.
 
 ---
 
@@ -260,7 +263,7 @@ Backend-and-frontend-both-needed, but not scoped yet beyond the channel itself:
 | Cache | Redis (ioredis) |
 | Vector DB | Pinecone |
 | LLM (Chat) | Groq (Llama 3.3 70B) — only live provider |
-| Embeddings | OpenAI text-embedding-3-small |
+| Embeddings | Pinecone's hosted embedding model (via `createEmbeddings` in `pinecone.ts`) — corrected 2026-07-12, this table previously said OpenAI text-embedding-3-small, which was never actually true; there is no OpenAI key anywhere in this project |
 | Email | Resend |
 | Queue | RabbitMQ (auth→email, chat→analytics.exchange) |
 

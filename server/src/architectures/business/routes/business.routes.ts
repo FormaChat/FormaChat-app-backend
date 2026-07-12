@@ -1,4 +1,5 @@
 import express, {Router} from 'express';
+import multer from 'multer';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { 
   ownershipMiddleware, 
@@ -23,6 +24,16 @@ import {
   retryDelivery,
   listWebhookEvents,
 } from '../controllers/webhook.controllers';
+import {
+  listProducts,
+  createProduct,
+  updateProduct,
+  updateProductStock,
+  deleteProduct,
+  uploadProductImage,
+} from '../controllers/product.controllers';
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 const router: Router = express.Router();
 
@@ -48,5 +59,13 @@ router.patch('/businesses/:id/webhooks/:webhookId', authMiddleware, ownershipMid
 router.delete('/businesses/:id/webhooks/:webhookId', authMiddleware, ownershipMiddleware, deleteWebhook);
 router.get('/businesses/:id/webhooks/:webhookId/deliveries', authMiddleware, ownershipMiddleware, listDeliveries);
 router.post('/businesses/:id/webhooks/deliveries/:deliveryId/retry', authMiddleware, ownershipMiddleware, retryDelivery);
+
+// Products
+router.get('/businesses/:id/products', authMiddleware, ownershipMiddleware, listProducts);
+router.post('/businesses/:id/products', authMiddleware, ownershipMiddleware, createProduct);
+router.put('/businesses/:id/products/:productId', authMiddleware, ownershipMiddleware, updateProduct);
+router.patch('/businesses/:id/products/:productId/stock', authMiddleware, ownershipMiddleware, updateProductStock);
+router.delete('/businesses/:id/products/:productId', authMiddleware, ownershipMiddleware, deleteProduct);
+router.post('/businesses/:id/products/upload-image', authMiddleware, ownershipMiddleware, upload.single('image'), uploadProductImage);
 
 export default router;

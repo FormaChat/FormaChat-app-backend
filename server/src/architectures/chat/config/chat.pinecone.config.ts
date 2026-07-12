@@ -227,6 +227,7 @@ class PineconeQueryService {
       score: number;
       sourceType: string;
       chunkId: string;
+      metadata: Record<string, any>;
     }>;
     context: string; // Combined text for LLM
     hasResults: boolean;
@@ -249,7 +250,8 @@ class PineconeQueryService {
         text: match.text,
         score: match.score,
         sourceType: match.metadata.sourceType || 'unknown',
-        chunkId: match.id
+        chunkId: match.id,
+        metadata: match.metadata || {}
       }));
 
       // 4. Combine into context for LLM

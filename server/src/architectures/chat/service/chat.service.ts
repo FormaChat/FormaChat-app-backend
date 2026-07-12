@@ -2,6 +2,7 @@ import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
 import { publishLeadCaptured, publishSessionStarted, publishSessionEnded, publishMessageSent } from '../config/chat.rabbitmq';
 import { webhookService } from '../../business/services/webhook.service';
+import { productService } from '../../business/services/product.service';
 import { ChatSession, ChatMessage, ContactLead } from '../model/chat.model';
 import { createLogger } from '../util/chat.logger.utils';
 import { checkDailyLimit, incrementSessionCount } from '../config/chat.redis.config';
@@ -254,6 +255,7 @@ export class ChatService {
       timestamp: Date;
     };
     contactCaptured?: boolean;
+    products?: Array<{ id: string; name: string; price: number; stockQuantity: number; imageUrl?: string }>;
     error?: string;
   }> {
     const startTime = Date.now();
@@ -431,6 +433,8 @@ export class ChatService {
         vectorResults: vectorSearch.results.length
       });
 
+      const products = await this.getProductsFromSearch(session.businessId, vectorSearch.results);
+
       return {
         success: true,
         message: {
@@ -438,7 +442,8 @@ export class ChatService {
           content: llmResponse.response,
           timestamp: botMsgDoc.timestamp
         },
-        contactCaptured: session.contact.captured
+        contactCaptured: session.contact.captured,
+        products
       };
 
     } catch (error: any) {
@@ -451,6 +456,39 @@ export class ChatService {
         success: false,
         error: 'MESSAGE_PROCESSING_FAILED'
       };
+    }
+  }
+
+  /**
+   * Looks up live stock/price in MongoDB for any product matches in a vector
+   * search result, so the chat response never shows numbers stale relative
+   * to the last Pinecone sync - MongoDB is always the source of truth.
+   */
+  private async getProductsFromSearch(
+    businessId: string,
+    results: Array<{ metadata: Record<string, any> }>
+  ): Promise<Array<{ id: string; name: string; price: number; stockQuantity: number; imageUrl?: string }>> {
+    try {
+      const productIds = [...new Set(
+        results
+          .filter(r => r.metadata?.type === 'product' && r.metadata?.productId)
+          .map(r => r.metadata.productId as string)
+      )];
+
+      if (productIds.length === 0) return [];
+
+      const products = await productService.getProductsByIds(businessId, productIds);
+
+      return products.map(p => ({
+        id: String(p._id),
+        name: p.name,
+        price: p.price,
+        stockQuantity: p.stockQuantity,
+        imageUrl: p.imageUrl
+      }));
+    } catch (error: any) {
+      logger.warn('[Message] Failed to attach live product data', { businessId, message: error.message });
+      return [];
     }
   }
 
