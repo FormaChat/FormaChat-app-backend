@@ -47,6 +47,10 @@ export const env = cleanEnv(process.env, {
   API_KEY_CLOUDINARY: str(),
   CLOUDINARY_URL: str(),
 
+  // GROQ (questionnaire AI pre-fill)
+  GROQ_API_KEY: str(),
+  GROQ_MODEL: str({ default: 'llama-3.3-70b-versatile' }),
+
 });
 
 // --- Custom Validations ---

@@ -33,6 +33,7 @@ import {
   uploadProductImage,
 } from '../controllers/product.controllers';
 import { uploadDocument, deleteDocument } from '../controllers/document.controllers';
+import { generatePrefill } from '../controllers/prefill.controllers';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 const uploadDoc = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
@@ -40,6 +41,10 @@ const uploadDoc = multer({ storage: multer.memoryStorage(), limits: { fileSize: 
 const router: Router = express.Router();
 
 router.get('/businesses/public/:id', getPublicBusinessDetails);
+
+// AI pre-fill for the create wizard - authenticated only, no ownership check
+// (the business doesn't exist yet at this point).
+router.post('/businesses/prefill', authMiddleware, uploadDoc.single('document'), generatePrefill);
 
 router.post('/businesses', authMiddleware, createBusiness);
 
