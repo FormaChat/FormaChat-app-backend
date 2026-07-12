@@ -43,11 +43,9 @@ const RefreshTokenSchema: Schema<IRefreshToken> = new Schema({
   timestamps: true
 });
 
-// Single session enforcement: Only one active (non-revoked) token per user
-RefreshTokenSchema.index({ userId: 1, isRevoked: 1 }, { 
-  unique: true,
-  partialFilterExpression: { isRevoked: false }
-});
+// Multi-device support: multiple simultaneous non-revoked tokens per user are
+// allowed (previously enforced single-session via a unique partial index here -
+// removed so logging in on a second device no longer silently kills the first).
 // TTL index for automatic cleanup of expired tokens
 RefreshTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 

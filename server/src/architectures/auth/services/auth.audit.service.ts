@@ -19,6 +19,7 @@ export interface AuditEvent {
     | 'password_reset'
     | 'token_refreshed'
     | 'account_deactivated'
+    | 'account_reactivated'
     | 'feedback_submitted';
   success: boolean;
   metadata: {

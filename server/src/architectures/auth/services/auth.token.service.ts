@@ -101,15 +101,18 @@ export class TokenService {
   }
 
   /**
-   * Generate both access and refresh tokens
-   *  FIXED: Pass revokeExisting flag
+   * Generate both access and refresh tokens.
+   * Multi-device support: defaults to NOT revoking existing sessions - a new
+   * login on a second device should not silently kill the first one's session.
+   * Pass revokeExisting=true explicitly for flows that should end other
+   * sessions on purpose (e.g. password change, "sign out everywhere").
   */
 
   async generateTokenPair(
-    userId: string, 
-    email: string, 
+    userId: string,
+    email: string,
     deviceInfo: { userAgent: string; ipAddress: string },
-    revokeExisting: boolean = true // Default true for new logins
+    revokeExisting: boolean = false
   ): Promise<TokenPair> {
     const [accessToken, refreshToken] = await Promise.all([
       this.generateAccessToken(userId, email),
@@ -200,6 +203,30 @@ export class TokenService {
     } catch (error:any) {
       logger.error('Error revoking refresh token:', error);
       throw new Error('TOKEN_REVOCATION_FAILED');
+    }
+  }
+
+  /**
+   * Revoke all refresh tokens for a user except the one matching currentToken.
+   * Used by "sign out of all other devices" - the session making the request
+   * must survive it.
+   */
+  async revokeAllUserTokensExcept(userId: string, currentToken: string): Promise<void> {
+    try {
+      const currentTokenHash = CryptoUtils.hashDeterministic(currentToken);
+
+      const result = await RefreshTokenModel.updateMany(
+        { userId, isRevoked: false, tokenHash: { $ne: currentTokenHash } },
+        { isRevoked: true }
+      );
+
+      logger.info('All other user tokens revoked', {
+        userId,
+        count: result.modifiedCount
+      });
+    } catch (error: any) {
+      logger.error('Error revoking other user tokens:', error);
+      throw new Error('TOKEN_BULK_REVOCATION_FAILED');
     }
   }
 

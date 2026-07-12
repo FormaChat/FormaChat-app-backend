@@ -203,11 +203,24 @@ export class UserController {
 
       await userService.deactivateAccount(userId, { ipAddress, userAgent });
 
-      // TODO: Revoke all active sessions/tokens
+      // Deactivating must sign the account out everywhere immediately - with
+      // multi-device sessions, a lingering session on another device could
+      // otherwise keep using the account after "deactivation".
+      try {
+        await sessionService.revokeAllUserSessions(userId, {
+          ipAddress,
+          userAgent,
+          reason: 'Account deactivated',
+        });
+      } catch (revokeError: any) {
+        logger.warn('Failed to revoke sessions after deactivation (non-critical)', {
+          error: revokeError.message,
+        });
+      }
 
       res.json({
         success: true,
-        message: 'Account deactivated successfully'
+        message: 'Account deactivated successfully. Log back in within 30 days to reactivate.'
       });
 
     } catch (error: any) {

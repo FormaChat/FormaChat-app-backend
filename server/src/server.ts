@@ -6,6 +6,8 @@ import { databaseManager as authDb } from './architectures/auth/config/auth.data
 import { redisManager } from './architectures/auth/config/auth.redis';
 import { rabbitmq } from './architectures/auth/config/auth.rabbitmq';
 import { startEmailResponseConsumer } from './architectures/auth/events/consumers/auth.emailResponse.consumer';
+import { setupAuthCronJobs } from './architectures/auth/cron/auth.cron';
+import { RefreshTokenModel } from './architectures/auth/persistence/auth.user.models';
 
 // --- Business service dependencies ---
 import { databaseManager as businessDb } from './architectures/business/config/business.database';
@@ -35,6 +37,20 @@ async function startServer() {
     await businessDb.connect();
     await chatDb.connect();
     logger.info('MongoDB connected');
+
+    // One-time index sync: the old unique single-session index on
+    // RefreshToken was removed from the schema, but Mongoose's default
+    // autoIndex only ever creates missing indexes - it never drops orphaned
+    // ones. Without this, the dead index stays live in production and
+    // multi-device login keeps failing there even though the code is fixed.
+    // Safe to leave running on every boot: syncIndexes() is a no-op once the
+    // index is actually gone.
+    try {
+      await RefreshTokenModel.syncIndexes();
+      logger.info('RefreshToken indexes synced (old single-session index dropped if present)');
+    } catch (syncError: any) {
+      logger.error('Failed to sync RefreshToken indexes', { message: syncError.message });
+    }
 
     // --- Redis (auth: ioredis) ---
     logger.info('Connecting to Redis (auth)...');
@@ -72,6 +88,7 @@ async function startServer() {
     // --- Cron jobs ---
     logger.info('Setting up cron jobs...');
     setupCronJobs();
+    setupAuthCronJobs();
     logger.info('Cron jobs active');
 
     // --- HTTP server ---

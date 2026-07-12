@@ -1,4 +1,4 @@
-import { UserModel, IUser, AuthLogModel } from '../persistence/auth.user.models';
+import { UserModel, IUser, AuthLogModel, BlacklistedEmailModel } from '../persistence/auth.user.models';
 import { PasswordService } from './auth.password.service';
 import { AuditService } from './auth.audit.service';
 import { createLogger } from '../utils/auth.logger.utils';
@@ -30,6 +30,7 @@ export interface LoginResult {
   error?: string;
   isLocked?: boolean;
   lockUntil?: Date;
+  reactivated?: boolean;
 }
 
 export interface UpdateProfileData {
@@ -44,6 +45,7 @@ export interface UpdateProfileData {
 export class UserService {
   private readonly MAX_FAILED_ATTEMPTS = 5;
   private readonly LOCK_TIME = 30 * 60 * 1000; // 30 minutes
+  static readonly DEACTIVATION_GRACE_PERIOD_DAYS = 30;
 
   /**
    * Register a new user
@@ -65,6 +67,22 @@ export class UserService {
           }
         });
         throw new Error('USER_ALREADY_EXISTS');
+      }
+
+      // Blacklisted: this email was permanently deleted after its previous
+      // account sat deactivated past the grace period - can't be reused.
+      const isBlacklisted = await BlacklistedEmailModel.findOne({ email: userData.email.toLowerCase() });
+      if (isBlacklisted) {
+        await AuditService.logAuthEvent({
+          eventType: 'registration',
+          success: false,
+          metadata: {
+            ipAddress: metadata.ipAddress,
+            userAgent: metadata.userAgent,
+            reason: 'Email is blacklisted'
+          }
+        });
+        throw new Error('EMAIL_BLACKLISTED');
       }
 
       // Validate password strength
@@ -149,10 +167,11 @@ export class UserService {
     try {
       logger.info('User login attempt', { email: credentials.email });
 
-      // Find active user by email
-      const user = await UserModel.findOne({ 
-        email: credentials.email.toLowerCase(),
-        isActive: true 
+      // Find user by email regardless of active state - a deactivated account
+      // within its grace period must still be able to log in and reactivate.
+      // (Deliberately not filtering isActive here; see the branch below.)
+      const user = await UserModel.findOne({
+        email: credentials.email.toLowerCase()
       });
 
       if (!user) {
@@ -162,7 +181,7 @@ export class UserService {
           metadata: {
             ipAddress: credentials.ipAddress,
             userAgent: credentials.userAgent,
-            reason: 'User not found or inactive'
+            reason: 'User not found'
           }
         });
         return { success: false, error: 'INVALID_CREDENTIALS' };
@@ -212,6 +231,46 @@ export class UserService {
         return { success: false, error: 'INVALID_CREDENTIALS' };
       }
 
+      // Password is correct. Only now (never before password verification -
+      // this avoids revealing deactivation state to a wrong password) branch
+      // on account status.
+      let reactivated = false;
+      if (!user.isActive) {
+        const graceMs = UserService.DEACTIVATION_GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000;
+        const withinGracePeriod = user.deactivatedAt
+          ? Date.now() - user.deactivatedAt.getTime() < graceMs
+          : false;
+
+        if (withinGracePeriod) {
+          user.isActive = true;
+          user.deactivatedAt = undefined;
+          reactivated = true;
+
+          await AuditService.logAuthEvent({
+            userId: user._id.toString(),
+            eventType: 'account_reactivated',
+            success: true,
+            metadata: { ipAddress: credentials.ipAddress, userAgent: credentials.userAgent }
+          });
+          logger.info('Account reactivated on login within grace period', { userId: user._id.toString() });
+        } else {
+          // Past the grace period (or no deactivatedAt on record) - the daily
+          // cron job should already have hard-deleted this account. Treat as
+          // invalid credentials defensively rather than granting access.
+          await AuditService.logAuthEvent({
+            userId: user._id.toString(),
+            eventType: 'login',
+            success: false,
+            metadata: {
+              ipAddress: credentials.ipAddress,
+              userAgent: credentials.userAgent,
+              reason: 'Account deactivated past grace period'
+            }
+          });
+          return { success: false, error: 'INVALID_CREDENTIALS' };
+        }
+      }
+
       // Successful login - reset failed attempts and update last login
       await this.handleSuccessfulLogin(user, credentials);
 
@@ -225,9 +284,9 @@ export class UserService {
         }
       });
 
-      logger.info('User login successful', { userId: user._id, email: user.email });
+      logger.info('User login successful', { userId: user._id, email: user.email, reactivated });
 
-      return { success: true, user };
+      return { success: true, user, reactivated };
     } catch (error:any) {
       logger.error('Error during user login:', error);
       return { success: false, error: 'LOGIN_FAILED' };
@@ -358,7 +417,8 @@ export class UserService {
         changedAt: new Date()
       });
 
-      // TODO: Revoke all existing tokens (security measure)
+      // Session revocation happens in the controller (auth.password.controller.ts),
+      // which calls sessionService.revokeAllUserSessions after this resolves.
 
     } catch (error:any) {
       logger.error('Error changing password:', error);
@@ -377,6 +437,7 @@ export class UserService {
       }
 
       user.isActive = false;
+      user.deactivatedAt = new Date();
       await user.save();
 
       await AuditService.logAuthEvent({
@@ -389,17 +450,16 @@ export class UserService {
         }
       });
 
-      // TODO: Publish user.deactivated event
-
       await publishUserDeactivated({
         userId: user._id.toString(),
         email: user.email,
-        deactivatedAt: new Date(),
+        deactivatedAt: user.deactivatedAt,
       });
 
-      // TODO: Revoke all active sessions/tokens
+      // Session revocation happens in the controller (auth.user.controller.ts),
+      // which calls sessionService.revokeAllUserSessions after this resolves.
 
-      logger.info('User account deactivated', { userId });
+      logger.info('User account deactivated', { userId, deactivatedAt: user.deactivatedAt });
     } catch (error:any) {
       logger.error('Error deactivating account:', error);
       throw error;

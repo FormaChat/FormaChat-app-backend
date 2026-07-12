@@ -2,6 +2,7 @@
 import { PasswordService } from '../services/auth.password.service';
 import { otpService } from '../services/auth.otp.service';
 import { userService } from '../services/auth.user.service';
+import { sessionService } from '../services/auth.session.service';
 import { AuditService } from '../services/auth.audit.service';
 import { createLogger } from '../utils/auth.logger.utils';
 
@@ -32,9 +33,25 @@ export class PasswordController {
         { ipAddress, userAgent }
       );
 
+      // Security best practice: a password change signs out every session,
+      // including this one - if the old password had leaked, this closes the
+      // door. The current browser keeps working until its access token
+      // naturally expires, then has to log in again with the new password.
+      try {
+        await sessionService.revokeAllUserSessions(userId, {
+          ipAddress,
+          userAgent,
+          reason: 'Password changed',
+        });
+      } catch (revokeError: any) {
+        logger.warn('Failed to revoke sessions after password change (non-critical)', {
+          error: revokeError.message,
+        });
+      }
+
       res.json({
         success: true,
-        message: 'Password changed successfully'
+        message: 'Password changed successfully. You have been signed out of all devices for security.'
       });
 
     } catch (error: any) {
@@ -194,11 +211,24 @@ export class PasswordController {
         metadata: { ipAddress, userAgent }
       });
 
-      // TODO: Revoke all existing sessions for security
+      // Same rationale as changePassword: a forgotten-password reset means the
+      // old password may have been compromised, so every existing session
+      // (including any device an attacker was using) gets signed out.
+      try {
+        await sessionService.revokeAllUserSessions(user.id, {
+          ipAddress,
+          userAgent,
+          reason: 'Password reset',
+        });
+      } catch (revokeError: any) {
+        logger.warn('Failed to revoke sessions after password reset (non-critical)', {
+          error: revokeError.message,
+        });
+      }
 
       res.json({
         success: true,
-        message: 'Password reset successfully'
+        message: 'Password reset successfully. You have been signed out of all devices for security.'
       });
 
     } catch (error: any) {

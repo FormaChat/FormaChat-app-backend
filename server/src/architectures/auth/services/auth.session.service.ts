@@ -56,14 +56,14 @@ export class SessionService {
   }
 
   /**
-   * Revoke all sessions except current (future multi-device support)
+   * Revoke all sessions except the current one (the device making this
+   * request stays signed in - every other device is signed out).
   */
 
   async revokeAllSessionsExceptCurrent(userId: string, currentRefreshToken: string): Promise<void> {
     try {
-      // For now, with single session enforcement, this revokes all sessions
-      await tokenService.revokeAllUserTokens(userId);
-      
+      await tokenService.revokeAllUserTokensExcept(userId, currentRefreshToken);
+
       logger.info('All sessions revoked except current', { userId });
     } catch (error:any) {
       logger.error('Error revoking other sessions:', error);

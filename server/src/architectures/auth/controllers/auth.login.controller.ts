@@ -9,9 +9,14 @@ import { createLogger } from '../utils/auth.logger.utils';
 const logger = createLogger('login-controller');
 
 /**
- * Revoke existing sessions, create a new one, and build the standard
- * login-success response body. Shared by password login, 2FA-verified login,
- * and magic-link login.
+ * Create a new session and build the standard login-success response body.
+ * Shared by password login, 2FA-verified login, and magic-link login.
+ *
+ * Multi-device support: no longer revokes existing sessions before creating
+ * a new one - a login on a second device must not silently kill the first
+ * device's session. (This used to call revokeAllUserSessions() here on every
+ * login, paired with a unique-per-user index on RefreshToken, which enforced
+ * single-session-only as a deliberate but user-hostile design choice.)
  *
  * Deliberately a plain module-level function, not a class method: this file's
  * route handlers are registered as bare function references (e.g.
@@ -24,19 +29,6 @@ const logger = createLogger('login-controller');
  */
 async function completeLogin(user: IUser, ipAddress: string, userAgent: string) {
   logger.info('completeLogin: start', { userId: user.id });
-
-  try {
-    await sessionService.revokeAllUserSessions(user.id, {
-      ipAddress,
-      userAgent,
-      reason: 'New login from different location'
-    });
-    logger.info('completeLogin: sessions revoked', { userId: user.id });
-  } catch (revokeError: any) {
-    logger.warn('Failed to revoke old sessions (non-critical)', {
-      error: revokeError.message
-    });
-  }
 
   let tokens;
   try {
@@ -165,14 +157,16 @@ export class LoginController {
       logger.info('User logged in successfully', {
         userId: loginResult.user.id,
         email: loginResult.user.email,
-        ipAddress
+        ipAddress,
+        reactivated: loginResult.reactivated
       });
 
       res.json({
         success: true,
         data: {
           user: userData,
-          tokens
+          tokens,
+          reactivated: loginResult.reactivated ?? false
         }
       });
 

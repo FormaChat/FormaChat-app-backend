@@ -13,6 +13,7 @@ export interface IUser extends Document {
   // Account Status & Security
   isVerified: boolean;
   isActive: boolean;
+  deactivatedAt?: Date;
   lastLoginAt?: Date;
   failedLoginAttempts: number;
   lockUntil?: Date;
@@ -64,8 +65,11 @@ const UserSchema: Schema<IUser> = new Schema({
     type: Boolean, 
     default: true 
   },
-  lastLoginAt: { 
-    type: Date 
+  deactivatedAt: {
+    type: Date
+  },
+  lastLoginAt: {
+    type: Date
   },
   failedLoginAttempts: { 
     type: Number, 

@@ -80,6 +80,16 @@ export class RegisterController {
         });
       }
 
+      if (error.message === 'EMAIL_BLACKLISTED') {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'EMAIL_BLACKLISTED',
+            message: 'This email address can no longer be used to create an account'
+          }
+        });
+      }
+
       if (error.message.startsWith('WEAK_PASSWORD')) {
         return res.status(400).json({
           success: false,

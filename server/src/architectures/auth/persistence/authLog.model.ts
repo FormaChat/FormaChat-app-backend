@@ -17,6 +17,7 @@ export interface IAuthLog extends Document {
     | 'password_reset'
     | 'token_refreshed'
     | 'account_deactivated'
+    | 'account_reactivated'
     | 'feedback_submitted';
   success: boolean;
   metadata: {
@@ -54,6 +55,7 @@ const AuthLogSchema: Schema<IAuthLog> = new Schema({
       'password_reset',
       'token_refreshed',
       'account_deactivated',
+      'account_reactivated',
       'feedback_submitted'
     ],
     required: true 

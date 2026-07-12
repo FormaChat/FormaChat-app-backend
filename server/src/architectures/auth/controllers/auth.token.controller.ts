@@ -171,6 +171,13 @@ export class TokenController {
         });
       }
 
+      if (!refreshToken) {
+        return res.status(400).json({
+          success: false,
+          error: 'refreshToken is required to identify the current session'
+        });
+      }
+
       await sessionService.revokeAllSessionsExceptCurrent(userId, refreshToken);
 
       res.json({
