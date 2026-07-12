@@ -20,4 +20,20 @@ export function uploadImageBuffer(buffer: Buffer, folder: string): Promise<strin
   });
 }
 
+/**
+ * For PDFs/DOCX - Cloudinary treats non-image files as `resource_type: 'raw'`.
+ */
+export function uploadRawBuffer(buffer: Buffer, folder: string, fileName: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder, resource_type: 'raw', public_id: fileName },
+      (error, result) => {
+        if (error || !result) return reject(error || new Error('Cloudinary upload failed'));
+        resolve(result.secure_url);
+      }
+    );
+    stream.end(buffer);
+  });
+}
+
 export default cloudinary;

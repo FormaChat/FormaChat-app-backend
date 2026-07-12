@@ -32,8 +32,10 @@ import {
   deleteProduct,
   uploadProductImage,
 } from '../controllers/product.controllers';
+import { uploadDocument, deleteDocument } from '../controllers/document.controllers';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+const uploadDoc = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
 
 const router: Router = express.Router();
 
@@ -67,5 +69,9 @@ router.put('/businesses/:id/products/:productId', authMiddleware, ownershipMiddl
 router.patch('/businesses/:id/products/:productId/stock', authMiddleware, ownershipMiddleware, updateProductStock);
 router.delete('/businesses/:id/products/:productId', authMiddleware, ownershipMiddleware, deleteProduct);
 router.post('/businesses/:id/products/upload-image', authMiddleware, ownershipMiddleware, upload.single('image'), uploadProductImage);
+
+// Documents (knowledge base PDFs/DOCX)
+router.post('/businesses/:id/documents/upload', authMiddleware, ownershipMiddleware, uploadDoc.single('document'), uploadDocument);
+router.delete('/businesses/:id/documents/:fileName', authMiddleware, ownershipMiddleware, deleteDocument);
 
 export default router;

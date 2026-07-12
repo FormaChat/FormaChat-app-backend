@@ -68,6 +68,13 @@ router.get(
   chatController.getDashboardSummaryController
 );
 
+router.get(
+  '/business/:businessId/analytics/chart-data',
+  authMiddleware,
+  ownershipMiddleware,
+  chatController.getChartDataController
+);
+
 router.post(
   '/internal/cleanup/messages',
   internalMiddleware,

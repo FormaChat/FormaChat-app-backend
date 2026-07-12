@@ -15,6 +15,7 @@ import { databaseManager as chatDb } from './architectures/chat/config/chat.db.c
 import { getRedisClient } from './architectures/chat/config/chat.redis.config';
 import { setupCronJobs } from './architectures/chat/cron/chat.cron';
 import { connectChatRabbitMQ, disconnectChatRabbitMQ } from './architectures/chat/config/chat.rabbitmq';
+import { connectAnalyticsConsumer, disconnectAnalyticsConsumer } from './architectures/chat/config/analytics.consumer';
 
 // --- Email service dependencies ---
 import { connectRabbitMQ as connectEmailRabbitMQ } from './architectures/email/config/email.rabbitmq';
@@ -65,6 +66,7 @@ async function startServer() {
     logger.info('Starting message consumers...');
     await startEmailResponseConsumer();
     await startAuthEmailConsumer();
+    await connectAnalyticsConsumer();
     logger.info('All consumers started');
 
     // --- Cron jobs ---
@@ -105,6 +107,7 @@ async function gracefulShutdown(signal: string) {
   try {
     await rabbitmq.disconnect();
     await disconnectChatRabbitMQ();
+    await disconnectAnalyticsConsumer();
     await redisManager.disconnect();
     await authDb.disconnect();
 

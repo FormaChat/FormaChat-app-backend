@@ -1460,6 +1460,61 @@ export class ChatService {
   //   }
   // }
 
+  /**
+   * Day-by-day counts for the analytics charts. Reads directly from the
+   * operational collections (ChatSession/ChatMessage/ContactLead) rather than
+   * the new AnalyticsEvent collection - that collection only starts
+   * accumulating data from when its consumer was wired up, so it has no
+   * history yet for existing businesses. This gives real charts immediately;
+   * a future pass can move this to AnalyticsEvent once enough history exists.
+   */
+  async getChartData(businessId: string, days: number = 7): Promise<{
+    sessionsPerDay: Array<{ date: string; count: number }>;
+    messagesPerDay: Array<{ date: string; count: number }>;
+    leadsPerDay: Array<{ date: string; count: number }>;
+  }> {
+    const since = new Date();
+    since.setHours(0, 0, 0, 0);
+    since.setDate(since.getDate() - (days - 1));
+
+    const dateKey = (field: string) => ({ $dateToString: { format: '%Y-%m-%d', date: `$${field}` } });
+
+    const [sessionRows, messageRows, leadRows] = await Promise.all([
+      ChatSession.aggregate([
+        { $match: { businessId, startedAt: { $gte: since } } },
+        { $group: { _id: dateKey('startedAt'), count: { $sum: 1 } } },
+      ]),
+      ChatMessage.aggregate([
+        { $match: { businessId, timestamp: { $gte: since }, deletedAt: null } },
+        { $group: { _id: dateKey('timestamp'), count: { $sum: 1 } } },
+      ]),
+      ContactLead.aggregate([
+        { $match: { businessId, firstContactDate: { $gte: since } } },
+        { $group: { _id: dateKey('firstContactDate'), count: { $sum: 1 } } },
+      ]),
+    ]);
+
+    // Aggregation only returns days that had data - fill in the gaps so the
+    // chart always shows a full, continuous N-day range.
+    const fillDays = (rows: Array<{ _id: string; count: number }>) => {
+      const byDate = new Map(rows.map(r => [r._id, r.count]));
+      const result: Array<{ date: string; count: number }> = [];
+      for (let i = 0; i < days; i++) {
+        const d = new Date(since);
+        d.setDate(since.getDate() + i);
+        const key = d.toISOString().slice(0, 10);
+        result.push({ date: key, count: byDate.get(key) || 0 });
+      }
+      return result;
+    };
+
+    return {
+      sessionsPerDay: fillDays(sessionRows),
+      messagesPerDay: fillDays(messageRows),
+      leadsPerDay: fillDays(leadRows),
+    };
+  }
+
 }
 
 export const chatService = new ChatService();

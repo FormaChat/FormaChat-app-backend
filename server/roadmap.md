@@ -58,14 +58,21 @@ Still organized as 4 domains (`auth`, `business`, `chat`, `email`) each with the
 
 ## 3. Business Profile & Knowledge Base
 
+**Full build log (Documents tab + business section reorg):** `feature9-12-13-reorg.md`.
+
 ### Backend
 - [x] **Business health score** — Built and mounted: `GET /businesses/:id/health-score` (`business.controllers.ts`).
-- [ ] **File preview / knowledge base viewer** — Not built. `deleteVectors`/`deleteNamespace` exist as internal config functions but aren't exposed through any route or controller.
-- [ ] **Multimodal product images (legacy plan item)** — Superseded by **§4 Live Product Catalog** below (same underlying need, now scoped per-product instead of per-document). Not built yet either way: `embedding.service.ts` only does Tesseract OCR text extraction, no GPT-4o vision, no Cloudinary integration.
+- [x] **File preview / knowledge base viewer** — Built as a "Documents" tab: `POST /businesses/:id/documents/upload` (PDF/DOCX → Cloudinary raw upload → pushed into `business.files.documents` → triggers vector sync) and `DELETE /businesses/:id/documents/:fileName`. This finally exposes `embeddingService.embedDocument()`'s PDF/DOCX parsing, which already existed and already ran during vector sync, but had no upload path to ever populate `files.documents` in the first place.
+- [ ] **Multimodal product images (legacy plan item)** — Superseded by **§4 Live Product Catalog** (same underlying need, now scoped per-product instead of per-document). Not built yet either way: `embedding.service.ts` only does Tesseract OCR text extraction, no GPT-4o vision, no Cloudinary integration for product photos specifically (product image upload itself is built — see §4 — this item is just about auto-generating descriptions from photos, which was deliberately skipped, see `feature4.md`).
 
 ### Frontend
-- [x] **Business health score widget** — Fetched and rendered as a "Knowledge Base Health" meter, though it lives on the Channels detail page rather than the business detail page.
-- [ ] **File preview / KB viewer UI** — Not built. Blocked on backend endpoints above.
+- [x] **Business health score widget** — Relocated (see reorg below) from the Channels page into a shared "Health strip" shown above the Questionnaire/Products/Documents tabs on the business's own page — visible regardless of which tab is active, not tucked into a separate Channels section.
+- [x] **File preview / KB viewer UI** — New Documents tab (`pages/dashboard/businesses/documents.ts`): upload PDF/DOCX, see name/size/upload-date per document, delete.
+
+### Business section reorg (requested directly, not a pre-existing roadmap item)
+Products and Knowledge Base Health used to live under the Channels page — moved to where they actually belong, alongside a restructured Questionnaire:
+- [x] New `components/business-tabs.ts` shared header: business name, Health strip, and a **Questionnaire / Products / Documents** tab bar, dropped at the top of `businesses/edit.ts`, `businesses/products.ts`, and the new `businesses/documents.ts`.
+- [x] `channels/detail.ts` trimmed back to actual channel/distribution concerns: Test Your Bot, QR code, Share & Embed, Widget Appearance, Webhooks. The "Manage Products" card, "Knowledge Base Health" card, and "Quick Tips" card (deemed unnecessary) were all removed from there, along with their now-dead CSS.
 
 ---
 
@@ -163,13 +170,16 @@ Still organized as 4 domains (`auth`, `business`, `chat`, `email`) each with the
 
 ## 9. Analytics & Reporting
 
+**Full build log:** `feature9-12-13-reorg.md`.
+
 ### Backend
 - [x] **Analytics event publishing** — `chat.rabbitmq.ts` publishes `chat.session.started/ended` and `chat.message.sent` to `analytics.exchange`.
-- [ ] **Analytics consumer + `AnalyticsEvent` collection** — Not built. Nothing consumes `analytics.exchange`; events are published into the void right now.
+- [x] **Analytics consumer + `AnalyticsEvent` collection** — Built (`chat/config/analytics.consumer.ts`, `chat/model/analyticsEvent.model.ts`), wired into server startup/shutdown. Note: charts (below) read from the existing operational collections, not this new one — `AnalyticsEvent` only has data from the moment it went live, no history for existing businesses. It's the foundation for future heavier reporting, not what powers charts on day one.
+- [x] **Chart-data endpoint** — `GET /business/:businessId/analytics/chart-data?days=N`, aggregates sessions/messages/leads per day from `ChatSession`/`ChatMessage`/`ContactLead`, zero-filled for a continuous range.
 
 ### Frontend
 - [x] **Baseline analytics dashboard** — Sessions/leads tables and CSV export already exist and function (`analytics/detail.ts`, `analytics/index.ts`).
-- [ ] **Charts and graphs** — Not built. Analytics pages are tables/numbers only, no chart library or SVG trend visualizations (sessions/day, lead capture rate, message volume, response time distribution).
+- [x] **Charts and graphs** — Built: `components/charts.ts`, pure SVG (no new dependency), olive-only palette. Sessions per day (line), messages per day (bar), leads captured per day (line) — on `analytics/detail.ts` between the stat cards and the tables. Response time distribution was not built (lower priority, would need its own scoping pass).
 
 ---
 
@@ -197,34 +207,34 @@ No backend counterpart — pure content/copy changes. **Full build log:** `featu
 
 ## 12. Frontend — UX Infrastructure & Polish
 
-No direct backend counterpart — pure frontend UX work.
+No direct backend counterpart — pure frontend UX work. **Full build log:** `feature9-12-13-reorg.md`.
 
 - [x] **Toast / notification system** — Redesigned (light-olive card, colored bottom border — green success / red error / olive info) and rolled out to login, register, forgot-password, and verify-email, replacing their inline red/green `<div>`s. `magic-login.ts` deliberately kept inline (its whole page content is the status message, no form to pop a toast over). Business edit/delete and settings already used the old version; now all consistent with the new design. See `feature1.md`/`feature6-10-11.md` for detail.
-- [ ] **Empty state improvements** — Not built. Still a single message + CTA, no step-by-step checklist.
-- [ ] **Mobile navigation** — Not built. Sidebar is still a hamburger dropdown at all widths, no bottom nav bar on mobile.
-- [ ] **404 page** — Not built. Unknown routes just redirect to `/`.
-- [ ] **Dark mode** — Not built. No theme toggle or dark CSS variables anywhere.
-- [ ] **Favicon + PWA manifest** — Not built. `index.html` links a remote icon URL; no local favicon or `manifest.json`.
-- [ ] **Keyboard shortcuts** — Not built. No Cmd/Ctrl+K palette, no Escape-to-close on modals.
+- [x] **Empty state improvements** — `empty-state.ts` gained an optional `checklist` field; wired into the analytics "no chat activity yet" state (previously raw inline HTML, not even using the shared component).
+- [x] **Mobile navigation** — New fixed bottom tab bar (`components/mobile-bottom-nav.ts`) below 768px; the hamburger/sidebar dropdown is hidden at that width instead of running alongside it.
+- [x] **404 page** — `pages/public/not-found.ts`, wired into the router's previously-silent redirect-to-`/` fallback.
+- [ ] **Dark mode** — Deliberately deferred (see `feature9-12-13-reorg.md`) — a full theme-variable pass across every page deserves its own session.
+- [x] **Favicon + PWA manifest** — Local `logo.png` (already existed) used for favicon/apple-touch-icon instead of a remote URL, plus a new `manifest.json`. Caveat: not resized to ideal icon dimensions (no image tool available) — functional but not pixel-perfect.
+- [ ] **Keyboard shortcuts** — Deliberately deferred — lowest value relative to effort of everything in this list.
 - [x] **Breadcrumb improvements** — Built. Breadcrumb items are real clickable `<a>` links (only the current page is plain text, which is correct behavior).
-- [ ] **Business card — more info** — Not built. Cards still only show name/status/created date.
-- [ ] **Copy to clipboard with feedback** — Partially built. Pattern exists on the Channels page and is reused in the lead details modal, but not in the session details modal.
-- [ ] **Skeleton loading states** — Not built. Still a spinner overlay everywhere.
-- [ ] **Pagination on tables** — Not built. No pagination controls on analytics or business list tables.
+- [x] **Business card — more info** — Chatbot tone + vector status badges added (free — the full `Business` object was already being fetched). Session/lead counts deliberately not added — would need an extra API call per card (N+1) on every list page.
+- [x] **Copy to clipboard with feedback** — The existing Channels-page/lead-modal pattern is now also in the session details modal (Session ID field).
+- [ ] **Skeleton loading states** — Deliberately deferred — cosmetic upgrade over the existing spinner, lower priority than the functional items above.
+- [x] **Pagination on tables** — New `components/pagination.ts`. Wired into `businesses/list.ts` (this was a real bug: the page silently capped at 10 businesses with no way to reach page 2) and the analytics "All Sessions"/"All Leads" modals (client-side, over the already-fetched up-to-100 records).
 
 ---
 
 ## 13. Frontend — Bugs & Code Quality
 
-Defects, not missing features — kept separate from the feature groups above.
+Defects, not missing features — kept separate from the feature groups above. **Full build log:** `feature9-12-13-reorg.md`.
 
 - [x] **register.ts max-height issue** — Fixed, no `max-height: 600px` constraint present anymore.
-- [ ] **Hardcoded production URL** — Still present. `channels/detail.ts` hardcodes `https://formachat.com` as the fallback when not on localhost, instead of reading from env/config.
-- [ ] **sessionStorage for verify-email** — Storage mechanism was switched to `localStorage` (good), but a new inconsistency was introduced: `register.ts` now bypasses `verify-email.ts` entirely with its own inline OTP step, so the two verification flows have diverged. Worth reconciling.
-- [ ] **Analytics columns mismatch** — Still present and actually a bit worse than described: the dashboard sessions table, the leads table, and the "All Sessions" modal table all have different column counts/sets, and `analytics/index.ts` doesn't mirror the detail page's tables at all.
+- [x] **Hardcoded production URL** — Centralized into `PRODUCTION_APP_URL` + `getPublicAppUrl()` in `api.config.ts`, replacing both duplicated inline occurrences in `channels/detail.ts`.
+- [x] **sessionStorage for verify-email** — Reconciled by elimination: `register.ts`'s entire standalone OTP section (~110 lines) deleted; registration now uses the exact same `localStorage` → `#/verify-email` handoff `login.ts` already used for `EMAIL_NOT_VERIFIED`. One verification implementation instead of two.
+- [x] **"Analytics columns mismatch" — investigated, not actually a bug.** The modal's 4th column is a checkbox powering real bulk-delete functionality; the summary preview correctly omits it since it has no bulk actions. `analytics/index.ts` is a business-picker grid, not a table page — there was nothing for it to mirror. Correcting the original note rather than force-changing something that wasn't broken.
 - [x] **Placeholder images** — Fixed. `shot1.png`–`shot5.png` all exist in `public/assets/` and are correctly referenced.
 - [x] **TypeScript strict mode** — Already enabled (`"strict": true` plus `noUnusedLocals`/`noUnusedParameters` in `tsconfig.json`).
-- [ ] **Error messages are too generic** — Partially fixed. `api.utils.ts` now returns structured `{code, message}` errors (`AUTHENTICATION_FAILED`, `NETWORK_ERROR`, etc.), but the service layer (`business.service.ts` etc.) still falls back to generic strings like "Failed to load businesses" instead of surfacing the specific code/message to the UI.
+- [x] **Error messages are too generic** — Audited all 24 `catch` blocks across the dashboard; most were discarding the specific message `business.service.ts` (and friends) already threw. Fixed in `businesses/list.ts`, `edit.ts`, `products.ts`, `documents.ts`, `channels/detail.ts`, `channels/index.ts`, `analytics/detail.ts`, `analytics/index.ts`, `settings.ts` (8 spots), `verify-email.ts`.
 
 ---
 

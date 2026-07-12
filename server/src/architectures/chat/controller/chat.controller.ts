@@ -768,6 +768,38 @@ export const getDashboardSummaryController = async (
   }
 };
 
+export const getChartDataController = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { businessId } = req.params;
+
+    if (!businessId || !businessId.match(/^[0-9a-fA-F]{24}$/)) {
+      res.status(400).json({
+        success: false,
+        error: { code: 'INVALID_BUSINESS_ID', message: 'Valid Business ID is required' }
+      });
+      return;
+    }
+
+    const days = Math.min(Math.max(Number(req.query.days) || 7, 1), 30);
+    const chartData = await chatService.getChartData(businessId, days);
+
+    res.status(200).json({ success: true, data: chartData });
+  } catch (error: any) {
+    logger.error('[Controller] Get chart data failed', {
+      message: error.message,
+      businessId: req.params.businessId
+    });
+
+    res.status(500).json({
+      success: false,
+      error: { code: 'INTERNAL_SERVER_ERROR', message: 'Failed to retrieve chart data' }
+    });
+  }
+};
+
 export const deleteSessionController = async (
   req: Request,
   res: Response
@@ -954,6 +986,7 @@ export default {
   getLeadsController,
   getSessionDetailsController,
   getDashboardSummaryController,
+  getChartDataController,
 
   
   deleteSessionController,
