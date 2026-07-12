@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/chat.env.config';
 import { createLogger } from '../util/chat.logger.utils';
+import { redisManager } from '../../auth/config/auth.redis';
 
 const logger = createLogger('auth-middleware');
 
@@ -9,8 +10,29 @@ interface JWTPayload {
   userId: string;
   email: string;
   role?: string;
+  sessionId?: string; // ties this access token to a RefreshToken doc for instant revocation checks
   iat?: number;  // Issued at
   exp?: number;  // Expiration
+}
+
+/**
+ * Checks the shared auth-module Redis cache for an explicit revocation of
+ * this access token's session (sign out this device, sign out other
+ * devices, deactivate, password change/reset). Without this, a revoked
+ * session's access token would keep working across the entire app until it
+ * naturally expires (JWT_ACCESS_EXPIRES_IN) - stateless JWTs aren't checked
+ * against anything by default. Fails OPEN on Redis errors so a Redis outage
+ * doesn't lock everyone out; the JWT signature/expiry check is still the
+ * primary gate.
+ */
+async function isSessionRevoked(sessionId: string | undefined): Promise<boolean> {
+  if (!sessionId) return false;
+  try {
+    return await redisManager.isSessionRevoked(sessionId);
+  } catch (error: any) {
+    logger.warn('[Auth] Session revocation check failed (Redis unavailable, allowing request)', { error: error.message });
+    return false;
+  }
 }
 
 export interface AuthenticatedRequest extends Request {
@@ -132,6 +154,16 @@ export const authMiddleware = async (
       return;
     }
 
+    // 6b. REJECT REVOKED SESSIONS (sign out, deactivate, password change/reset)
+    if (await isSessionRevoked(decoded.sessionId)) {
+      res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Session has been revoked',
+        code: 'SESSION_REVOKED'
+      });
+      return;
+    }
+
     // 7. ATTACH USER DATA TO REQUEST
     req.user = {
       userId: decoded.userId,
@@ -182,7 +214,7 @@ export const optionalAuthMiddleware = async (
     try {
       const decoded = jwt.verify(token, jwtSecret) as JWTPayload;
 
-      if (decoded.userId && decoded.email) {
+      if (decoded.userId && decoded.email && !(await isSessionRevoked(decoded.sessionId))) {
         req.user = {
           userId: decoded.userId,
           email: decoded.email,

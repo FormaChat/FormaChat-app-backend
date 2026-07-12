@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import { RefreshTokenModel } from '../persistence/auth.user.models';
 import { CryptoUtils } from '../utils/auth.crypto.utils';
 import { env } from '../config/auth.env';
+import { redisManager } from '../config/auth.redis';
 import { createLogger } from '../utils/auth.logger.utils';
 
 const logger = createLogger('token-service');
@@ -10,6 +11,11 @@ export interface TokenPayload {
   userId: string;
   email: string;
   type: 'access' | 'refresh';
+  // Ties an access token to the RefreshToken document (_id) it was issued
+  // alongside, so jwtMiddleware can check Redis for instant revocation
+  // instead of trusting the JWT for its full lifetime. Optional so tokens
+  // issued before this existed still verify fine (just skip the check).
+  sessionId?: string;
 }
 
 export interface TokenPair {
@@ -32,12 +38,13 @@ export class TokenService {
    * Generate access token (JWT)
   */
 
-  async generateAccessToken(userId: string, email: string): Promise<string> {
+  async generateAccessToken(userId: string, email: string, sessionId?: string): Promise<string> {
     try {
       const payload: TokenPayload = {
         userId,
         email,
-        type: 'access'
+        type: 'access',
+        ...(sessionId ? { sessionId } : {})
       };
 
       return jwt.sign(payload, env.JWT_ACCESS_SECRET, {
@@ -57,14 +64,14 @@ export class TokenService {
   */
 
   async generateRefreshToken(
-    userId: string, 
+    userId: string,
     deviceInfo: { userAgent: string; ipAddress: string },
     revokeExisting: boolean = false // Only true on new login
-  ): Promise<string> {
+  ): Promise<{ refreshToken: string; sessionId: string }> {
     try {
       // Generate secure random token
       const refreshToken = CryptoUtils.generateCryptoString(64);
-      
+
       // ✅ FIXED: Use deterministic hash (SHA-256) instead of bcrypt
       const tokenHash = CryptoUtils.hashDeterministic(refreshToken);
 
@@ -82,7 +89,7 @@ export class TokenService {
       }
 
       // Store new refresh token
-      await RefreshTokenModel.create({
+      const doc = await RefreshTokenModel.create({
         userId,
         tokenHash,
         expiresAt,
@@ -93,7 +100,7 @@ export class TokenService {
         }
       });
 
-      return refreshToken;
+      return { refreshToken, sessionId: doc._id.toString() };
     } catch (error:any) {
       logger.error('Error generating refresh token:', error);
       throw new Error('REFRESH_TOKEN_GENERATION_FAILED');
@@ -114,10 +121,11 @@ export class TokenService {
     deviceInfo: { userAgent: string; ipAddress: string },
     revokeExisting: boolean = false
   ): Promise<TokenPair> {
-    const [accessToken, refreshToken] = await Promise.all([
-      this.generateAccessToken(userId, email),
-      this.generateRefreshToken(userId, deviceInfo, revokeExisting)
-    ]);
+    // Sequential, not parallel: the access token needs the sessionId that
+    // only exists once the refresh token's RefreshToken document has been
+    // created. The extra round trip is negligible next to the DB write.
+    const { refreshToken, sessionId } = await this.generateRefreshToken(userId, deviceInfo, revokeExisting);
+    const accessToken = await this.generateAccessToken(userId, email, sessionId);
 
     return { accessToken, refreshToken };
   }
@@ -189,13 +197,14 @@ export class TokenService {
     try {
       // ✅ FIXED: Use deterministic hash (SHA-256) instead of bcrypt
       const tokenHash = CryptoUtils.hashDeterministic(token);
-      
+
       const result = await RefreshTokenModel.findOneAndUpdate(
         { tokenHash, isRevoked: false },
         { isRevoked: true }
       );
 
       if (result) {
+        await this.markRevokedInRedis(result._id.toString());
         logger.info('Refresh token revoked successfully');
       } else {
         logger.warn('Token already revoked or not found');
@@ -214,11 +223,14 @@ export class TokenService {
   async revokeAllUserTokensExcept(userId: string, currentToken: string): Promise<void> {
     try {
       const currentTokenHash = CryptoUtils.hashDeterministic(currentToken);
+      const filter = { userId, isRevoked: false, tokenHash: { $ne: currentTokenHash } };
 
-      const result = await RefreshTokenModel.updateMany(
-        { userId, isRevoked: false, tokenHash: { $ne: currentTokenHash } },
-        { isRevoked: true }
-      );
+      // Grab ids before the bulk update - updateMany doesn't return the
+      // documents it touched, and we need them to invalidate the matching
+      // access tokens in Redis.
+      const toRevoke = await RefreshTokenModel.find(filter).select('_id');
+      const result = await RefreshTokenModel.updateMany(filter, { isRevoked: true });
+      await this.markRevokedInRedis(toRevoke.map((doc) => doc._id.toString()));
 
       logger.info('All other user tokens revoked', {
         userId,
@@ -235,14 +247,15 @@ export class TokenService {
    */
   async revokeAllUserTokens(userId: string): Promise<void> {
     try {
-      const result = await RefreshTokenModel.updateMany(
-        { userId, isRevoked: false },
-        { isRevoked: true }
-      );
+      const filter = { userId, isRevoked: false };
 
-      logger.info('All user tokens revoked', { 
-        userId, 
-        count: result.modifiedCount 
+      const toRevoke = await RefreshTokenModel.find(filter).select('_id');
+      const result = await RefreshTokenModel.updateMany(filter, { isRevoked: true });
+      await this.markRevokedInRedis(toRevoke.map((doc) => doc._id.toString()));
+
+      logger.info('All user tokens revoked', {
+        userId,
+        count: result.modifiedCount
       });
 
     } catch (error:any) {
@@ -279,6 +292,7 @@ export class TokenService {
       );
 
       if (result) {
+        await this.markRevokedInRedis(sessionId);
         logger.info('Session revoked by id', { userId, sessionId });
         return true;
       }
@@ -288,6 +302,26 @@ export class TokenService {
     } catch (error: any) {
       logger.error('Error revoking session by id:', error);
       throw new Error('SESSION_REVOKE_BY_ID_FAILED');
+    }
+  }
+
+  /**
+   * Mark one or more sessions revoked in Redis so their still-valid access
+   * tokens get rejected on their very next request, instead of waiting out
+   * the JWT's full lifetime. Non-critical: a Redis failure here must never
+   * fail the underlying Mongo revocation, so errors are swallowed and logged.
+   */
+  private async markRevokedInRedis(sessionId: string | string[]): Promise<void> {
+    try {
+      if (Array.isArray(sessionId)) {
+        await redisManager.markSessionsRevoked(sessionId, env.JWT_ACCESS_EXPIRES_IN);
+      } else {
+        await redisManager.markSessionRevoked(sessionId, env.JWT_ACCESS_EXPIRES_IN);
+      }
+    } catch (error: any) {
+      logger.warn('Failed to mark session(s) revoked in Redis (non-critical - Mongo revocation still applies)', {
+        error: error.message
+      });
     }
   }
 

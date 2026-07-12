@@ -29,7 +29,8 @@ class RedisManager {
     SESSION: 'session:',
     IDEMPOTENCY: 'idempotency:',
     RATE_LIMIT: 'rate:',
-    LOCK: 'lock:'
+    LOCK: 'lock:',
+    REVOKED_SESSION: 'revoked-session:'
   };
 
   private constructor() {
@@ -234,6 +235,36 @@ class RedisManager {
 
   async deleteSession(sessionId: string): Promise<void> {
     await this.client.del(`${this.KEY_PREFIXES.SESSION}${sessionId}`);
+  }
+
+  // ==================== SESSION REVOCATION (instant access-token kill) ====================
+  // Access tokens are stateless JWTs that stay valid for their full lifetime
+  // (JWT_ACCESS_EXPIRES_IN) regardless of what happens to the refresh token
+  // they were issued alongside. Revoking a session in Mongo stops that device
+  // from getting a *new* access token, but its current one keeps working
+  // until it naturally expires. These keys close that gap: every explicit
+  // revocation (sign out this device, sign out other devices, deactivate,
+  // password change/reset) writes the session's id here, and every
+  // authenticated request checks it. Keys self-expire once the JWT they
+  // guard against would have expired anyway, so this never grows unbounded.
+
+  async markSessionRevoked(sessionId: string, ttlSeconds: number): Promise<void> {
+    if (ttlSeconds <= 0) return;
+    const key = `${this.KEY_PREFIXES.REVOKED_SESSION}${sessionId}`;
+    await this.client.setex(key, ttlSeconds, '1');
+  }
+
+  async markSessionsRevoked(sessionIds: string[], ttlSeconds: number): Promise<void> {
+    if (sessionIds.length === 0 || ttlSeconds <= 0) return;
+    const pipeline = this.client.pipeline();
+    sessionIds.forEach((id) => pipeline.setex(`${this.KEY_PREFIXES.REVOKED_SESSION}${id}`, ttlSeconds, '1'));
+    await pipeline.exec();
+  }
+
+  async isSessionRevoked(sessionId: string): Promise<boolean> {
+    const key = `${this.KEY_PREFIXES.REVOKED_SESSION}${sessionId}`;
+    const value = await this.client.get(key);
+    return value !== null;
   }
 
   // ==================== HEALTH & UTILITIES ====================

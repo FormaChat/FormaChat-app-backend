@@ -141,9 +141,15 @@ export class SessionService {
 
       const { userId, email } = verification.payload;
 
-      // 2. Generate new tokens
-      const accessToken = await tokenService.generateAccessToken(userId, email);
-      const newRefreshToken = await tokenService.generateRefreshToken(userId, deviceInfo, true);
+      // 2. Generate new tokens.
+      // revokeExisting=false: this is routine rotation of THIS device's own
+      // token, not a new login. Passing true here (as this used to) would
+      // revoke every OTHER device's session too, on every single silent
+      // refresh (roughly every 15 minutes per device) - reintroducing
+      // single-session-only behavior through a second path even after the
+      // login flow was fixed to support multiple devices.
+      const { refreshToken: newRefreshToken, sessionId } = await tokenService.generateRefreshToken(userId, deviceInfo, false);
+      const accessToken = await tokenService.generateAccessToken(userId, email, sessionId);
 
       // 3. NOW revoke the old token (after new one is created)
       // This prevents the race condition where token is revoked before client gets new one
