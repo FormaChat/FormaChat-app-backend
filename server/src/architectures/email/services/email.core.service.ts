@@ -240,7 +240,7 @@ export class EmailCoreService {
 
       await sendEmail({
         to: params.businessOwnerEmail,
-        subject: `🎯 New Lead Captured — ${params.businessName}`,
+        subject: `New Lead Captured — ${params.businessName}`,
         html,
       });
 

@@ -50,6 +50,10 @@ export interface WeeklySummaryTemplateData {
   newLeadsDetails?: Array<{ name?: string; email?: string; phone?: string }>;
 }
 
+export interface MarketingUpdateTemplateData {
+  firstName?: string;
+}
+
 export class TemplateService {
   private templateCache: Map<string, HandlebarsTemplateDelegate> = new Map();
 
@@ -144,6 +148,16 @@ export class TemplateService {
     return this.renderTemplate('weekly-summary', {
       ...data,
       currentYear: new Date().getFullYear(),
+    });
+  }
+
+  /**
+   * Render the "what's new" product-update marketing email
+   */
+  renderMarketingUpdateEmail(data: MarketingUpdateTemplateData): string {
+    return this.renderTemplate('marketing-update', {
+      firstName: data.firstName || 'there',
+      currentYear: new Date().getFullYear()
     });
   }
 

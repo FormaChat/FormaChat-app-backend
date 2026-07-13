@@ -30,7 +30,7 @@ export async function sendEmail({ to, subject, html, from, replyTo }: EmailOptio
   try {
     validateEmailOptions({ to, subject, html });
     
-    logger.info('📨 Attempting to send email via Resend', { to, subject });
+    logger.info('Attempting to send email via Resend', { to, subject });
 
     const emailPayload: any = {
       from: from || defaultFrom,
@@ -52,7 +52,7 @@ export async function sendEmail({ to, subject, html, from, replyTo }: EmailOptio
 
     const emailId = response.data?.id;
 
-    logger.info('✅ Email successfully sent via Resend', {
+    logger.info('Email successfully sent via Resend', {
       to,
       subject,
       id: emailId,
@@ -61,7 +61,7 @@ export async function sendEmail({ to, subject, html, from, replyTo }: EmailOptio
 
     return emailId;
   } catch (error: any) {
-    logger.error('❌ Failed to send email via Resend', {
+    logger.error(' Failed to send email via Resend', {
       to,
       subject,
       error: error.message,

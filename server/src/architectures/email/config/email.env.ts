@@ -39,7 +39,7 @@ export const env = cleanEnv(process.env, {
 
   // Resend
   RESEND_API_KEY: str({ default: '' }),
-  RESEND_FROM_EMAIL: str({ default: 'noreply@formachat.com' }),
+  RESEND_FROM_EMAIL: str({ default: 'FormaChat <noreply@formachat.com>' }),
 
   // Email branding
   EMAIL_BANNER_URL: str({ default: 'https://res.cloudinary.com/dff5frjrl/image/upload/v1783804512/formachat_banner_o2oulo.png' }),
